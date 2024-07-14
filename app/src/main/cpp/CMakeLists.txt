@@ -10,13 +10,11 @@ project("vulkanex")
 add_library(vulkanex SHARED
         main.cpp
         AndroidOut.cpp
-        Renderer.cpp
-        Shader.cpp
-        TextureAsset.cpp
-        Utility.cpp)
+)
 
 # Searches for a package provided by the game activity dependency
 find_package(game-activity REQUIRED CONFIG)
+find_package(Vulkan REQUIRED)
 
 # Configure libraries CMake uses to link your target library.
 target_link_libraries(vulkanex
@@ -29,4 +27,5 @@ target_link_libraries(vulkanex
         GLESv3
         jnigraphics
         android
+        Vulkan::Vulkan
         log)
