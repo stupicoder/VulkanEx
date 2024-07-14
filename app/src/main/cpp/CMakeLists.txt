@@ -8,6 +8,9 @@ project("vulkanex")
 # Creates your game shared library. The name must be the same as the
 # one used for loading in your Kotlin/Java or AndroidManifest.txt files.
 add_library(vulkanex SHARED
+        VkRenderer.h
+        VkRenderer.cpp
+        VkUtil.h
         main.cpp
         AndroidOut.cpp
 )

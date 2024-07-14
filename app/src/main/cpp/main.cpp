@@ -1,10 +1,11 @@
 #include <jni.h>
 
+#include "VkRenderer.h"
 #include "AndroidOut.h"
 
 #include <game-activity/GameActivity.cpp>
 #include <game-text-input/gametextinput.cpp>
-#include <Vulkan/vulkan.h>
+#include <vulkan/vulkan.h>
 
 extern "C" {
 
@@ -22,7 +23,7 @@ void handle_cmd(android_app *pApp, int32_t cmd) {
             // "game" class if that suits your needs. Remember to change all instances of userData
             // if you change the class here as a reinterpret_cast is dangerous this in the
             // android_main function and the APP_CMD_TERM_WINDOW handler case.
-            //pApp->userData = new Renderer(pApp);
+            pApp->userData = new VkRenderer();
             break;
         case APP_CMD_TERM_WINDOW:
             // The window is being destroyed. Use this to clean up your userData to avoid leaking
@@ -30,7 +31,8 @@ void handle_cmd(android_app *pApp, int32_t cmd) {
             //
             // We have to check if userData is assigned just in case this comes in really quickly
             if (pApp->userData) {
-
+                delete static_cast<VkRenderer*>(pApp->userData);
+                pApp->userData = nullptr;
             }
             break;
         default:
