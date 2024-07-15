@@ -3,7 +3,9 @@
 //
 
 #include <cassert>
+#include <array>
 #include <vector>
+#include <iomanip>
 
 #include "VkRenderer.h"
 #include "VkUtil.h"
@@ -12,7 +14,9 @@
 using namespace std;
 
 VkRenderer::VkRenderer() {
-
+    // ================================================================================
+    // 1. VkInstance 생성
+    // ================================================================================
     VkApplicationInfo applicationInfo{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pApplicationName = "Vulkan Ex",
@@ -39,6 +43,35 @@ VkRenderer::VkRenderer() {
     };
 
     VK_CHECK_ERROR(vkCreateInstance(&instanceCreateInfo, nullptr, &mInstance));
+
+    // ================================================================================
+    // 2. VkPhysicalDevice 선택
+    // ================================================================================
+    uint32_t physicalDeviceCount;
+    VK_CHECK_ERROR(vkEnumeratePhysicalDevices(mInstance, &physicalDeviceCount, nullptr));
+
+    vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+    VK_CHECK_ERROR(vkEnumeratePhysicalDevices(mInstance, &physicalDeviceCount, physicalDevices.data()));
+
+    // 간단한 예제를 위해 첫 번째 VkPhysicalDevice를 사용합니다.
+    mPhysicalDevice = physicalDevices[0];
+
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(mPhysicalDevice, &physicalDeviceProperties);
+
+    aout << "Selected Physical Device Information " << endl;
+    aout << setw(16) << left << " - Device Name: " << string_view(physicalDeviceProperties.deviceName) << endl;
+    aout << setw(16) << left << " - Device Type: " << vkToString(physicalDeviceProperties.deviceType) << endl;
+    aout << std::hex;
+    aout << setw(16) << left << " - Device ID: " << physicalDeviceProperties.deviceID << endl;
+    aout << setw(16) << left << " - Vendor ID: " << physicalDeviceProperties.vendorID << endl;
+    aout << std::dec;
+    aout << setw(16) << left << " - API Version: "
+         << VK_API_VERSION_MAJOR(physicalDeviceProperties.apiVersion) << "."
+         << VK_API_VERSION_MINOR(physicalDeviceProperties.apiVersion);
+    aout << setw(16) << left << " - Driver Version: "
+         << VK_API_VERSION_MAJOR(physicalDeviceProperties.driverVersion) << "."
+         << VK_API_VERSION_MINOR(physicalDeviceProperties.driverVersion);
 }
 
 VkRenderer::~VkRenderer() {

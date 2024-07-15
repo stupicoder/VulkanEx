@@ -106,4 +106,21 @@ inline std::string vkToString(VkResult vkResult) {
     } while (0)
 #endif
 
+inline std::string_view vkToString(VkPhysicalDeviceType physicalDeviceType) {
+    switch (physicalDeviceType) {
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+            return "Other";
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            return "Integrated GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            return "Discrete GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            return "Virtual GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            return "CPU";
+        default:
+            return "Unknown";
+    }
+}
+
 #endif //VULKANEX_VKUTIL_H
