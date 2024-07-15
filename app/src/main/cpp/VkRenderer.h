@@ -11,6 +11,9 @@ class VkRenderer {
 public:
     VkRenderer();
     ~VkRenderer();
+
+private:
+    VkInstance mInstance;
 };
 
 
