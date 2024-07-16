@@ -72,8 +72,43 @@ VkRenderer::VkRenderer() {
     aout << setw(16) << left << " - Driver Version: "
          << VK_API_VERSION_MAJOR(physicalDeviceProperties.driverVersion) << "."
          << VK_API_VERSION_MINOR(physicalDeviceProperties.driverVersion);
+
+    // ================================================================================
+    // 3. VkDevice 생성
+    // ================================================================================
+    uint32_t queueFamilyPropertiesCount;
+    vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueFamilyPropertiesCount, nullptr);
+
+    vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
+
+    for (mQueueFamilyIndex = 0; mQueueFamilyIndex < queueFamilyPropertiesCount; ++mQueueFamilyIndex)
+    {
+        if (queueFamilyProperties[mQueueFamilyIndex].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            break;
+        }
+    }
+
+    const vector<float> queuePriorities{ 1.0 };
+    VkDeviceQueueCreateInfo deviceQueueCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = mQueueFamilyIndex,
+        .queueCount = 1,
+        .pQueuePriorities = queuePriorities.data()
+    };
+
+    VkDeviceCreateInfo deviceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &deviceQueueCreateInfo,
+    };
+
+    VK_CHECK_ERROR(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice));
+    vkGetDeviceQueue(mDevice, mQueueFamilyIndex, 0, &mQueue);
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroyDevice(mDevice, nullptr);
     vkDestroyInstance(mInstance, nullptr);
 }
