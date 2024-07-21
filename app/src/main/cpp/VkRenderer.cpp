@@ -27,19 +27,38 @@ VkRenderer::VkRenderer() {
     uint32_t  instanceLayerCount;
     VK_CHECK_ERROR(vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr));
 
-    vector<VkLayerProperties> instancLayerProperties(instanceLayerCount);
-    VK_CHECK_ERROR(vkEnumerateInstanceLayerProperties(&instanceLayerCount, instancLayerProperties.data()));
+    vector<VkLayerProperties> instanceLayerProperties(instanceLayerCount);
+    VK_CHECK_ERROR(vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayerProperties.data()));
 
     vector<const char*> instanceLayerNames;
-    for (const auto& layerProperty : instancLayerProperties) {
+    for (const auto& layerProperty : instanceLayerProperties) {
         instanceLayerNames.push_back(layerProperty.layerName);
     }
+
+    uint32_t instanceExtensionCount = 0;
+    VK_CHECK_ERROR(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, nullptr));
+
+    vector<VkExtensionProperties> instanceExtensionProperties(instanceExtensionCount);
+    VK_CHECK_ERROR(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, instanceExtensionProperties.data()));
+
+    vector<const char*> instanceExtensionNames;
+    for(const auto& properties : instanceExtensionProperties)
+    {
+        if (properties.extensionName == string("VK_KHR_surface") ||
+            properties.extensionName == string("VK_KHR_android_surface"))
+        {
+            instanceExtensionNames.push_back(properties.extensionName);
+        }
+    }
+    assert(instanceExtensionNames.size() == 2);
 
     VkInstanceCreateInfo instanceCreateInfo{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo = &applicationInfo,
         .enabledLayerCount = instanceLayerCount,
-        .ppEnabledLayerNames = instanceLayerNames.data()
+        .ppEnabledLayerNames = instanceLayerNames.data(),
+        .enabledExtensionCount = static_cast<uint32_t>(instanceExtensionNames.size()),
+        .ppEnabledExtensionNames = instanceExtensionNames.data()
     };
 
     VK_CHECK_ERROR(vkCreateInstance(&instanceCreateInfo, nullptr, &mInstance));
@@ -98,10 +117,28 @@ VkRenderer::VkRenderer() {
         .pQueuePriorities = queuePriorities.data()
     };
 
+    uint32_t deviceExtensionCount = 0;
+    VK_CHECK_ERROR(vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &deviceExtensionCount, nullptr));
+
+    vector<VkExtensionProperties> deviceExtentsionProperties(deviceExtensionCount);
+    VK_CHECK_ERROR(vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &deviceExtensionCount, deviceExtentsionProperties.data()));
+
+    vector<const char*> deviceExtensionNames;
+    for(const auto& properties : deviceExtentsionProperties)
+    {
+        if (properties.extensionName == string("VK_KHR_swapchain"))
+        {
+            deviceExtensionNames.push_back(properties.extensionName);
+        }
+    }
+    assert(deviceExtensionNames.size() == 1);
+
     VkDeviceCreateInfo deviceCreateInfo{
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &deviceQueueCreateInfo,
+        .enabledExtensionCount = static_cast<uint32_t>(deviceExtensionNames.size()),
+        .ppEnabledExtensionNames = deviceExtensionNames.data()
     };
 
     VK_CHECK_ERROR(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice));
