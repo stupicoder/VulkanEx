@@ -6,6 +6,8 @@
 #define VULKANEX_VKUTIL_H
 
 #include <string>
+
+#define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vulkan.h>
 
 #ifndef NDEBUG

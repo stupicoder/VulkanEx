@@ -19,6 +19,8 @@ add_library(vulkanex SHARED
 find_package(game-activity REQUIRED CONFIG)
 find_package(Vulkan REQUIRED)
 
+target_compile_definitions(vulkanex PRIVATE VK_USE_PLATFORM_ANDROID_KHR)
+
 # Configure libraries CMake uses to link your target library.
 target_link_libraries(vulkanex
         # The game activity

@@ -13,7 +13,7 @@
 
 using namespace std;
 
-VkRenderer::VkRenderer() {
+VkRenderer::VkRenderer(ANativeWindow* window) {
     // ================================================================================
     // 1. VkInstance 생성
     // ================================================================================
@@ -143,9 +143,25 @@ VkRenderer::VkRenderer() {
 
     VK_CHECK_ERROR(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice));
     vkGetDeviceQueue(mDevice, mQueueFamilyIndex, 0, &mQueue);
+
+    // ================================================================================
+    // 4. VkSurface 생성
+    // ================================================================================
+    VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
+        .window = window
+    };
+
+    VK_CHECK_ERROR(vkCreateAndroidSurfaceKHR(mInstance, &surfaceCreateInfo, nullptr, &mSurface));
+
+    VkBool32 supported;
+    VK_CHECK_ERROR(vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, mQueueFamilyIndex, mSurface, &supported));
+
+    assert(supported);
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
     vkDestroyDevice(mDevice, nullptr);
     vkDestroyInstance(mInstance, nullptr);
 }
