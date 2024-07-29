@@ -5,6 +5,8 @@
 #ifndef VULKANEX_VKRENDERER_H
 #define VULKANEX_VKRENDERER_H
 
+#include <vector>
+
 #define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vulkan.h>
 
@@ -20,6 +22,8 @@ private:
     VkDevice mDevice;
     VkQueue mQueue;
     VkSurfaceKHR mSurface;
+    VkSwapchainKHR mSwapchain;
+    std::vector<VkImage> mSwapchainImages;
 };
 
 
