@@ -248,9 +248,26 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
 
     VK_CHECK_ERROR(vkCreateCommandPool(mDevice, &commandPoolCreateInfo, nullptr, &mCommandPool));
 
+    // ================================================================================
+    // 6. VkCommandBuffer 생성
+    // ================================================================================
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = mCommandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1
+    };
+
+    VK_CHECK_ERROR(vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, &mCommandBuffer));
+
+    // ================================================================================
+    // 6. VkCommandBuffer 재설정
+    // ================================================================================
+    VK_CHECK_ERROR(vkResetCommandBuffer(mCommandBuffer, 0));
 }
 
 VkRenderer::~VkRenderer() {
+    vkFreeCommandBuffers(mDevice, mCommandPool, 1, &mCommandBuffer);
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
