@@ -249,7 +249,7 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
     VK_CHECK_ERROR(vkCreateCommandPool(mDevice, &commandPoolCreateInfo, nullptr, &mCommandPool));
 
     // ================================================================================
-    // 6. VkCommandBuffer 생성
+    // 6. VkCommandBuffer 할당
     // ================================================================================
     VkCommandBufferAllocateInfo commandBufferAllocateInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -261,9 +261,56 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
     VK_CHECK_ERROR(vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, &mCommandBuffer));
 
     // ================================================================================
-    // 6. VkCommandBuffer 재설정
+    // 7. VkCommandBuffer 기록 시작
     // ================================================================================
-    VK_CHECK_ERROR(vkResetCommandBuffer(mCommandBuffer, 0));
+    VkCommandBufferBeginInfo commandBufferBeginInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    VK_CHECK_ERROR(vkBeginCommandBuffer(mCommandBuffer, &commandBufferBeginInfo));
+
+    for (auto swapchainImage : mSwapchainImages)
+    {
+        // ================================================================================
+        // 8. VkImage 색상 초기화
+        // ================================================================================
+        VkClearColorValue clearColorValue{
+            .float32 = { 0.6431, 0.7765, 0.2235, 1.0}
+        };
+
+        VkImageSubresourceRange imageSubresourceRange {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        };
+
+        vkCmdClearColorImage(mCommandBuffer,
+                             swapchainImage,
+                             VK_IMAGE_LAYOUT_UNDEFINED,
+                             &clearColorValue,
+                             1,
+                             &imageSubresourceRange);
+    }
+
+    // ================================================================================
+    // 9. VkCommandBuffer 기록 종료
+    // ================================================================================
+    VK_CHECK_ERROR(vkEndCommandBuffer(mCommandBuffer));
+
+    // ================================================================================
+    // 10. VkCommandBuffer 제출
+    // ================================================================================
+    VkSubmitInfo submitInfo{
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &mCommandBuffer
+    };
+
+    VK_CHECK_ERROR(vkQueueSubmit(mQueue, 1, &submitInfo, VK_NULL_HANDLE));
+    VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
 }
 
 VkRenderer::~VkRenderer() {
@@ -273,4 +320,30 @@ VkRenderer::~VkRenderer() {
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
     vkDestroyDevice(mDevice, nullptr);
     vkDestroyInstance(mInstance, nullptr);
+}
+
+void VkRenderer::Render() {
+    // ================================================================================
+    // 1. 화면에 출력할 수 있는 VkImage 얻기
+    // ================================================================================
+    uint32_t swapchainImageIndex;
+    VK_CHECK_ERROR(vkAcquireNextImageKHR(mDevice,
+                                         mSwapchain,
+                                         UINT64_MAX,
+                                         VK_NULL_HANDLE,
+                                         VK_NULL_HANDLE,
+                                         &swapchainImageIndex));
+
+    // ================================================================================
+    // 2. VkImage 화면에 출력
+    // ================================================================================
+    VkPresentInfoKHR presentInfo {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .swapchainCount = 1,
+        .pSwapchains = &mSwapchain,
+        .pImageIndices = &swapchainImageIndex
+    };
+
+    VK_CHECK_ERROR(vkQueuePresentKHR(mQueue, &presentInfo));
+    VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
 }

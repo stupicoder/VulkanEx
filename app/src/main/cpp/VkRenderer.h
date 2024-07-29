@@ -15,6 +15,8 @@ public:
     explicit VkRenderer(ANativeWindow* window);
     ~VkRenderer();
 
+    void Render();
+
 private:
     VkInstance mInstance;
     VkPhysicalDevice mPhysicalDevice;
