@@ -236,9 +236,22 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
 
     mSwapchainImages.resize(swapchainImageCount);
     VK_CHECK_ERROR(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &swapchainImageCount, mSwapchainImages.data()));
+
+    // ================================================================================
+    // 6. VkCommandPool 생성
+    // ================================================================================
+    VkCommandPoolCreateInfo commandPoolCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = mQueueFamilyIndex
+    };
+
+    VK_CHECK_ERROR(vkCreateCommandPool(mDevice, &commandPoolCreateInfo, nullptr, &mCommandPool));
+
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
     vkDestroyDevice(mDevice, nullptr);
