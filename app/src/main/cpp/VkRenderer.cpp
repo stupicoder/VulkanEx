@@ -311,9 +311,19 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
 
     VK_CHECK_ERROR(vkQueueSubmit(mQueue, 1, &submitInfo, VK_NULL_HANDLE));
     VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
+
+    // ================================================================================
+    // 11. VkFence 생성
+    // ================================================================================
+    VkFenceCreateInfo fenceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+    };
+
+    VK_CHECK_ERROR(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFence));
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroyFence(mDevice, mFence, nullptr);
     vkFreeCommandBuffers(mDevice, mCommandPool, 1, &mCommandBuffer);
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
@@ -331,11 +341,17 @@ void VkRenderer::Render() {
                                          mSwapchain,
                                          UINT64_MAX,
                                          VK_NULL_HANDLE,
-                                         VK_NULL_HANDLE,
+                                         mFence,
                                          &swapchainImageIndex));
 
     // ================================================================================
-    // 2. VkImage 화면에 출력
+    // 2. VkFence 기다린 후 초기화
+    // ================================================================================
+    VK_CHECK_ERROR(vkWaitForFences(mDevice, 1, &mFence, VK_TRUE, UINT64_MAX));
+    VK_CHECK_ERROR(vkResetFences(mDevice, 1, &mFence));
+
+    // ================================================================================
+    // 3. VkImage 화면에 출력
     // ================================================================================
     VkPresentInfoKHR presentInfo {
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,

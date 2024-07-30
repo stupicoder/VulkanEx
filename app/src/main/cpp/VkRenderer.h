@@ -28,6 +28,7 @@ private:
     std::vector<VkImage> mSwapchainImages;
     VkCommandPool mCommandPool;
     VkCommandBuffer mCommandBuffer;
+    VkFence mFence;
 };
 
 
