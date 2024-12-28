@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#define VK_USE_PLATFORM_ANDROID_KHR
+//#define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vulkan.h>
 
 class VkRenderer {
@@ -15,7 +15,7 @@ public:
     explicit VkRenderer(ANativeWindow* window);
     ~VkRenderer();
 
-    void Render();
+    void render();
 
 private:
     VkInstance mInstance;
@@ -30,6 +30,7 @@ private:
     VkCommandBuffer mCommandBuffer;
     VkFence mFence;
     VkClearColorValue mClearColorValue{.float32{0.6431, 0.7765, 0.2235, 1.0}};
+    VkSemaphore mSemaphore;
 };
 
 
