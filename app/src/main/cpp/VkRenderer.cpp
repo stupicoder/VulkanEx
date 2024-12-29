@@ -179,6 +179,8 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                                              mSurface,
                                                              &surfaceCapabilities));
 
+    mSwapchainImageExtent = surfaceCapabilities.currentExtent;
+
     VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_FLAG_BITS_MAX_ENUM_KHR;
     for (auto i = 0; i <= 4; ++i) {
         if (auto flag = 0x1u << i; surfaceCapabilities.supportedCompositeAlpha & flag) {
@@ -240,7 +242,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
             .minImageCount = surfaceCapabilities.minImageCount,
             .imageFormat = surfaceFormats[surfaceFormatIndex].format,
             .imageColorSpace = surfaceFormats[surfaceFormatIndex].colorSpace,
-            .imageExtent = surfaceCapabilities.currentExtent,
+            .imageExtent = mSwapchainImageExtent,
             .imageArrayLayers = 1,
             .imageUsage = swapchainImageUsage,
             .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -426,9 +428,31 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     };
 
     VK_CHECK_ERROR(vkCreateRenderPass(mDevice, &renderPassCreateInfo, nullptr, &mRenderPass));
+
+    mFramebuffers.resize(swapchainImageCount);
+    for (auto i = 0; i != swapchainImageCount; ++i) {
+        // ================================================================================
+        // 16. VkFramebuffer 생성
+        // ================================================================================
+        VkFramebufferCreateInfo framebufferCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = mRenderPass,
+            .attachmentCount = 1,
+            .pAttachments = &mSwapchainImageViews[i],
+            .width = mSwapchainImageExtent.width,
+            .height = mSwapchainImageExtent.height,
+            .layers = 1,
+        };
+
+        VK_CHECK_ERROR(vkCreateFramebuffer(mDevice, &framebufferCreateInfo, nullptr, &mFramebuffers[i]));
+    }
 }
 
 VkRenderer::~VkRenderer() {
+    for (auto framebuffer : mFramebuffers) {
+        vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
+    }
+    mFramebuffers.clear();
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
     for (auto imageView : mSwapchainImageViews) {
         vkDestroyImageView(mDevice, imageView, nullptr);
