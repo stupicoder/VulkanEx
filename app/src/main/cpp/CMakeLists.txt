@@ -5,6 +5,21 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project("vulkanex")
 
+####################################################################################################
+# shaderc 정의
+####################################################################################################
+set(CMAKE_SHADERC ${CMAKE_ANDROID_NDK}/sources/third_party/shaderc)
+add_library(shaderc INTERFACE)
+
+target_include_directories(shaderc INTERFACE
+        ${CMAKE_SHADERC}/include)
+
+target_link_libraries(shaderc INTERFACE
+        ${CMAKE_SHADERC}/libs/system/${CMAKE_ANDROID_ARCH_ABI}/libshaderc.a)
+
+####################################################################################################
+# practicevulkan 정의
+####################################################################################################
 # Creates your game shared library. The name must be the same as the
 # one used for loading in your Kotlin/Java or AndroidManifest.txt files.
 add_library(vulkanex SHARED
@@ -33,4 +48,18 @@ target_link_libraries(vulkanex
         jnigraphics
         android
         Vulkan::Vulkan
+        shaderc
         log)
+
+####################################################################################################
+# shaderctest 정의
+####################################################################################################
+find_package(googletest REQUIRED CONFIG)
+find_package(junit-gtest REQUIRED CONFIG)
+
+add_library(shaderctest SHARED ShadercTest.cpp)
+
+target_link_libraries(shaderctest PRIVATE
+        googletest::gtest
+        junit-gtest::junit-gtest
+        shaderc)
