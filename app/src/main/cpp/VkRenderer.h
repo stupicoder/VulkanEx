@@ -30,10 +30,9 @@ private:
     VkCommandPool mCommandPool;
     VkCommandBuffer mCommandBuffer;
     VkFence mFence;
-    VkClearColorValue mClearColorValue{.float32{0.6431, 0.7765, 0.2235, 1.0}};
+    VkClearValue mClearValue{.color{.float32{0.6431, 0.7765, 0.2235, 1.0}}};
     VkSemaphore mSemaphore;
     std::vector<VkImageView> mSwapchainImageViews;
-
     VkRenderPass mRenderPass;
     std::vector<VkFramebuffer> mFramebuffers;
 };
