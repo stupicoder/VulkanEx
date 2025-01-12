@@ -5,10 +5,16 @@
 #ifndef VULKANEX_VKUTIL_H
 #define VULKANEX_VKUTIL_H
 
+#include <string_view>
 #include <string>
+#include <vector>
+#include <random>
 
 #define VK_USE_PLATFORM_ANDROID_KHR
 #include <vulkan/vulkan.h>
+#include <shaderc/shaderc.hpp>
+
+#include "AndroidOut.h"
 
 #ifndef NDEBUG
 inline std::string vkToString(VkResult vkResult) {
@@ -123,6 +129,38 @@ inline std::string_view vkToString(VkPhysicalDeviceType physicalDeviceType) {
         default:
             return "Unknown";
     }
+}
+
+typedef enum VkShaderType {
+    VK_SHADER_TYPE_VERTEX = shaderc_vertex_shader,
+    VK_SHADER_TYPE_FRAGMENT = shaderc_fragment_shader
+} VkShaderType;
+
+inline VkResult
+vkCompileShader(std::string_view shaderCode, VkShaderType shaderType,
+                std::vector<uint32_t> *shaderBinary) {
+    std::random_device device;
+    std::mt19937 generator(device());
+    std::uniform_int_distribution<int> distribution('a', 'z');
+    std::string tag('a', 4);
+
+    for (auto i = 0; i < 16; ++i) {
+        tag[i] = static_cast<char>(distribution(generator));
+    }
+
+    shaderc::Compiler compiler;
+    auto result = compiler.CompileGlslToSpv(shaderCode.data(),
+                                            shaderCode.size(),
+                                            static_cast<shaderc_shader_kind>(shaderType),
+                                            tag.c_str());
+
+    if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
+        aout << result.GetErrorMessage() << std::endl;
+        return VK_ERROR_UNKNOWN;
+    }
+
+    *shaderBinary = std::vector(result.cbegin(), result.cend());
+    return VK_SUCCESS;
 }
 
 #endif //VULKANEX_VKUTIL_H

@@ -444,11 +444,77 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
             .layers = 1,
         };
 
-        VK_CHECK_ERROR(vkCreateFramebuffer(mDevice, &framebufferCreateInfo, nullptr, &mFramebuffers[i]));
+        VK_CHECK_ERROR(vkCreateFramebuffer(mDevice,
+                                           &framebufferCreateInfo,
+                                           nullptr,
+                                           &mFramebuffers[i]));
     }
+
+    // ================================================================================
+    // 13. Vertex VkShaderModule 생성
+    // ================================================================================
+    string_view vertexShaderCode = {
+            "#version 310 es                                        \n"
+            "                                                       \n"
+            "void main() {                                          \n"
+            "    vec2 pos[3] = vec2[3](vec2(-0.5,  0.5),            \n"
+            "                          vec2( 0.5,  0.5),            \n"
+            "                          vec2( 0.0, -0.5));           \n"
+            "                                                       \n"
+            "    gl_Position = vec4(pos[gl_VertexIndex], 0.0, 1.0); \n"
+            "}                                                      \n"
+    };
+
+    std::vector<uint32_t> vertexShaderBinaray;
+    VK_CHECK_ERROR(vkCompileShader(vertexShaderCode,
+                                   VK_SHADER_TYPE_VERTEX,
+                                   &vertexShaderBinaray));
+
+    VkShaderModuleCreateInfo vertexShaderModuleCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = vertexShaderBinaray.size() * sizeof(uint32_t ),
+        .pCode = vertexShaderBinaray.data()
+    };
+
+    VK_CHECK_ERROR(vkCreateShaderModule(mDevice,
+                                        &vertexShaderModuleCreateInfo,
+                                        nullptr,
+                                        &mVertexShaderModule));
+
+    // ================================================================================
+    // 14. Fragment VkShaderModule 생성
+    // ================================================================================
+    string_view fragmentShaderCode = {
+            "#version 310 es                                        \n"
+            "precision mediump float;                               \n"
+            "                                                       \n"
+            "layout(location = 0) out vec4 fragmentColor;           \n"
+            "                                                       \n"
+            "void main() {                                          \n"
+            "    fragmentColor = vec4(1.0, 0.0, 0.0, 1.0);          \n"
+            "}                                                      \n"
+    };
+
+    std::vector<uint32_t> fragmentShaderBinary;
+    VK_CHECK_ERROR(vkCompileShader(fragmentShaderCode,
+                                   VK_SHADER_TYPE_FRAGMENT,
+                                   &fragmentShaderBinary));
+
+    VkShaderModuleCreateInfo fragmentShaderModuleCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .codeSize = fragmentShaderBinary.size() * sizeof(uint32_t),
+        .pCode = fragmentShaderBinary.data()
+    };
+
+    VK_CHECK_ERROR(vkCreateShaderModule(mDevice,
+                                        &fragmentShaderModuleCreateInfo,
+                                        nullptr,
+                                        &mFragmentShaderModule));
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroyShaderModule(mDevice, mVertexShaderModule, nullptr);
+    vkDestroyShaderModule(mDevice, mFragmentShaderModule, nullptr);
     for (auto framebuffer : mFramebuffers) {
         vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
     }

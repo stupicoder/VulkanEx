@@ -35,6 +35,8 @@ private:
     std::vector<VkImageView> mSwapchainImageViews;
     VkRenderPass mRenderPass;
     std::vector<VkFramebuffer> mFramebuffers;
+    VkShaderModule mVertexShaderModule;
+    VkShaderModule mFragmentShaderModule;
 };
 
 
