@@ -20,6 +20,7 @@ public:
 private:
     VkInstance mInstance;
     VkPhysicalDevice mPhysicalDevice;
+    VkPhysicalDeviceMemoryProperties mPhysicalDeviceMemoryProperties;
     uint32_t mQueueFamilyIndex;
     VkDevice mDevice;
     VkQueue mQueue;
@@ -40,6 +41,7 @@ private:
     VkPipelineLayout mPipelineLayout;
     VkPipeline mPipeline;
     VkBuffer mVertexBuffer;
+    VkDeviceMemory mVertexMemory;
 };
 
 

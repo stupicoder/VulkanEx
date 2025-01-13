@@ -115,13 +115,18 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     aout << std::dec;
     aout << setw(16) << left << " - API Version: "
          << VK_API_VERSION_MAJOR(physicalDeviceProperties.apiVersion) << "."
-         << VK_API_VERSION_MINOR(physicalDeviceProperties.apiVersion);
+         << VK_API_VERSION_MINOR(physicalDeviceProperties.apiVersion) << endl;
     aout << setw(16) << left << " - Driver Version: "
          << VK_API_VERSION_MAJOR(physicalDeviceProperties.driverVersion) << "."
-         << VK_API_VERSION_MINOR(physicalDeviceProperties.driverVersion);
+         << VK_API_VERSION_MINOR(physicalDeviceProperties.driverVersion) << endl;
 
     // ================================================================================
-    // 3. VkDevice 생성
+    // 3. VkPhysicalDeviceMemoryProperties 얻기
+    // ================================================================================
+    vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &mPhysicalDeviceMemoryProperties);
+
+    // ================================================================================
+    // 4. VkDevice 생성
     // ================================================================================
     uint32_t queueFamilyPropertiesCount;
     vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &queueFamilyPropertiesCount, nullptr);
@@ -177,7 +182,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     vkGetDeviceQueue(mDevice, mQueueFamilyIndex, 0, &mQueue);
 
     // ================================================================================
-    // 4. VkSurface 생성
+    // 5. VkSurface 생성
     // ================================================================================
     VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo{
             .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
@@ -194,13 +199,12 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     assert(supported);
 
     // ================================================================================
-    // 5. VkSwapchain 생성
+    // 6. VkSwapchain 생성
     // ================================================================================
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
     VK_CHECK_ERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice,
                                                              mSurface,
                                                              &surfaceCapabilities));
-
     mSwapchainImageExtent = surfaceCapabilities.currentExtent;
 
     VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_FLAG_BITS_MAX_ENUM_KHR;
@@ -287,26 +291,26 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     mSwapchainImageViews.resize(swapchainImageCount);
     for (auto i = 0; i != swapchainImageCount; ++i) {
         // ================================================================================
-        // 6. VkImageView 생성
+        // 7. VkImageView 생성
         // ================================================================================
         VkImageViewCreateInfo imageViewCreateInfo{
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = mSwapchainImages[i],
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = surfaceFormats[surfaceFormatIndex].format,
-            .components = {
-                    .r = VK_COMPONENT_SWIZZLE_R,
-                    .g = VK_COMPONENT_SWIZZLE_G,
-                    .b = VK_COMPONENT_SWIZZLE_B,
-                    .a = VK_COMPONENT_SWIZZLE_A
-            },
-            .subresourceRange = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1
-            }
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = mSwapchainImages[i],
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = surfaceFormats[surfaceFormatIndex].format,
+                .components = {
+                        .r = VK_COMPONENT_SWIZZLE_R,
+                        .g = VK_COMPONENT_SWIZZLE_G,
+                        .b = VK_COMPONENT_SWIZZLE_B,
+                        .a = VK_COMPONENT_SWIZZLE_A,
+                },
+                .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1
+                }
         };
 
         VK_CHECK_ERROR(vkCreateImageView(mDevice,
@@ -316,7 +320,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     }
 
     // ================================================================================
-    // 7. VkCommandPool 생성
+    // 8. VkCommandPool 생성
     // ================================================================================
     VkCommandPoolCreateInfo commandPoolCreateInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -328,7 +332,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     VK_CHECK_ERROR(vkCreateCommandPool(mDevice, &commandPoolCreateInfo, nullptr, &mCommandPool));
 
     // ================================================================================
-    // 8. VkCommandBuffer 할당
+    // 9. VkCommandBuffer 할당
     // ================================================================================
     VkCommandBufferAllocateInfo commandBufferAllocateInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -340,68 +344,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     VK_CHECK_ERROR(vkAllocateCommandBuffers(mDevice, &commandBufferAllocateInfo, &mCommandBuffer));
 
     // ================================================================================
-    // 9. VkCommandBuffer 기록 시작
-    // ================================================================================
-    VkCommandBufferBeginInfo commandBufferBeginInfo{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-    };
-
-    VK_CHECK_ERROR(vkBeginCommandBuffer(mCommandBuffer, &commandBufferBeginInfo));
-
-    for (auto swapchainImage: mSwapchainImages) {
-        // ================================================================================
-        // 10. VkImageLayout 변환
-        // ================================================================================
-        VkImageMemoryBarrier imageMemoryBarrierForPresentSwapchainImage{
-                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                .srcAccessMask = 0,
-                .dstAccessMask = 0,
-                .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image = swapchainImage,
-                .subresourceRange = {
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .baseMipLevel = 0,
-                        .levelCount = 1,
-                        .baseArrayLayer = 0,
-                        .layerCount = 1
-                }
-        };
-
-        vkCmdPipelineBarrier(mCommandBuffer,
-                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                             0,
-                             0,
-                             nullptr,
-                             0,
-                             nullptr,
-                             1,
-                             &imageMemoryBarrierForPresentSwapchainImage);
-    }
-
-    // ================================================================================
-    // 11. VkCommandBuffer 기록 종료
-    // ================================================================================
-    VK_CHECK_ERROR(vkEndCommandBuffer(mCommandBuffer));
-
-    // ================================================================================
-    // 12. VkCommandBuffer 제출
-    // ================================================================================
-    VkSubmitInfo submitInfo{
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .commandBufferCount = 1,
-            .pCommandBuffers = &mCommandBuffer
-    };
-
-    VK_CHECK_ERROR(vkQueueSubmit(mQueue, 1, &submitInfo, VK_NULL_HANDLE));
-    VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
-
-    // ================================================================================
-    // 13. VkFence 생성
+    // 10. VkFence 생성
     // ================================================================================
     VkFenceCreateInfo fenceCreateInfo{
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -410,7 +353,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     VK_CHECK_ERROR(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFence));
 
     // ================================================================================
-    // 14. VkSemaphore 생성
+    // 11. VkSemaphore 생성
     // ================================================================================
     VkSemaphoreCreateInfo semaphoreCreateInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -419,34 +362,34 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     VK_CHECK_ERROR(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mSemaphore));
 
     // ================================================================================
-    // 15. VkRenderPass 생성
+    // 12. VkRenderPass 생성
     // ================================================================================
     VkAttachmentDescription attachmentDescription{
-        .format = surfaceFormats[surfaceFormatIndex].format,
-        .samples = VK_SAMPLE_COUNT_1_BIT,
-        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+            .format = surfaceFormats[surfaceFormatIndex].format,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
     };
 
     VkAttachmentReference attachmentReference{
-        .attachment = 0,
-        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            .attachment = 0,
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
     };
 
     VkSubpassDescription subpassDescription{
-        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = &attachmentReference
+            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+            .colorAttachmentCount = 1,
+            .pColorAttachments = &attachmentReference
     };
 
     VkRenderPassCreateInfo renderPassCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .attachmentCount = 1,
-        .pAttachments = &attachmentDescription,
-        .subpassCount = 1,
-        .pSubpasses = &subpassDescription,
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+            .attachmentCount = 1,
+            .pAttachments = &attachmentDescription,
+            .subpassCount = 1,
+            .pSubpasses = &subpassDescription
     };
 
     VK_CHECK_ERROR(vkCreateRenderPass(mDevice, &renderPassCreateInfo, nullptr, &mRenderPass));
@@ -454,16 +397,16 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     mFramebuffers.resize(swapchainImageCount);
     for (auto i = 0; i != swapchainImageCount; ++i) {
         // ================================================================================
-        // 16. VkFramebuffer 생성
+        // 13. VkFramebuffer 생성
         // ================================================================================
         VkFramebufferCreateInfo framebufferCreateInfo{
-            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = mRenderPass,
-            .attachmentCount = 1,
-            .pAttachments = &mSwapchainImageViews[i],
-            .width = mSwapchainImageExtent.width,
-            .height = mSwapchainImageExtent.height,
-            .layers = 1,
+                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                .renderPass = mRenderPass,
+                .attachmentCount = 1,
+                .pAttachments = &mSwapchainImageViews[i],
+                .width = mSwapchainImageExtent.width,
+                .height = mSwapchainImageExtent.height,
+                .layers = 1
         };
 
         VK_CHECK_ERROR(vkCreateFramebuffer(mDevice,
@@ -473,7 +416,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     }
 
     // ================================================================================
-    // 13. Vertex VkShaderModule 생성
+    // 14. Vertex VkShaderModule 생성
     // ================================================================================
     string_view vertexShaderCode = {
             "#version 310 es                                        \n"
@@ -487,15 +430,15 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
             "}                                                      \n"
     };
 
-    std::vector<uint32_t> vertexShaderBinaray;
+    std::vector<uint32_t> vertexShaderBinary;
     VK_CHECK_ERROR(vkCompileShader(vertexShaderCode,
                                    VK_SHADER_TYPE_VERTEX,
-                                   &vertexShaderBinaray));
+                                   &vertexShaderBinary));
 
     VkShaderModuleCreateInfo vertexShaderModuleCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-        .codeSize = vertexShaderBinaray.size() * sizeof(uint32_t ),
-        .pCode = vertexShaderBinaray.data()
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = vertexShaderBinary.size() * sizeof(uint32_t),
+            .pCode = vertexShaderBinary.data()
     };
 
     VK_CHECK_ERROR(vkCreateShaderModule(mDevice,
@@ -504,7 +447,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                         &mVertexShaderModule));
 
     // ================================================================================
-    // 14. Fragment VkShaderModule 생성
+    // 15. Fragment VkShaderModule 생성
     // ================================================================================
     string_view fragmentShaderCode = {
             "#version 310 es                                        \n"
@@ -523,9 +466,9 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                    &fragmentShaderBinary));
 
     VkShaderModuleCreateInfo fragmentShaderModuleCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-        .codeSize = fragmentShaderBinary.size() * sizeof(uint32_t),
-        .pCode = fragmentShaderBinary.data()
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = fragmentShaderBinary.size() * sizeof(uint32_t),
+            .pCode = fragmentShaderBinary.data()
     };
 
     VK_CHECK_ERROR(vkCreateShaderModule(mDevice,
@@ -534,10 +477,10 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                         &mFragmentShaderModule));
 
     // ================================================================================
-    // 15. VkPipelineLayout 생성
+    // 16. VkPipelineLayout 생성
     // ================================================================================
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
     };
 
     VK_CHECK_ERROR(vkCreatePipelineLayout(mDevice,
@@ -546,92 +489,92 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                           &mPipelineLayout));
 
     // ================================================================================
-    // 16. Graphics VkPipeline 생성
+    // 17. Graphics VkPipeline 생성
     // ================================================================================
     array<VkPipelineShaderStageCreateInfo, 2> pipelineShaderStageCreateInfos{
-        VkPipelineShaderStageCreateInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_VERTEX_BIT,
-            .module = mVertexShaderModule,
-            .pName = "main"
-        },
-        VkPipelineShaderStageCreateInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .module = mFragmentShaderModule,
-            .pName = "main"
-        }
+            VkPipelineShaderStageCreateInfo{
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                    .module = mVertexShaderModule,
+                    .pName = "main"
+            },
+            VkPipelineShaderStageCreateInfo{
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .module = mFragmentShaderModule,
+                    .pName = "main"
+            }
     };
 
     VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
     };
 
     VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .topology =VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
     };
 
     VkViewport viewport{
-        .width = static_cast<float>(mSwapchainImageExtent.width),
-        .height = static_cast<float>(mSwapchainImageExtent.height),
-        .maxDepth = 1.0f
+            .width = static_cast<float>(mSwapchainImageExtent.width),
+            .height = static_cast<float>(mSwapchainImageExtent.height),
+            .maxDepth = 1.0f
     };
 
     VkRect2D scissor{
-        .extent = mSwapchainImageExtent
+            .extent = mSwapchainImageExtent
     };
 
     VkPipelineViewportStateCreateInfo pipelineViewportStateCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-        .viewportCount = 1,
-        .pViewports = &viewport,
-        .scissorCount = 1,
-        .pScissors = &scissor
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            .viewportCount = 1,
+            .pViewports = &viewport,
+            .scissorCount = 1,
+            .pScissors = &scissor
     };
 
     VkPipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-        .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_NONE,
-        .lineWidth = 1.0f
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .polygonMode = VK_POLYGON_MODE_FILL,
+            .cullMode = VK_CULL_MODE_NONE,
+            .lineWidth = 1.0f
     };
 
     VkPipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
     };
 
     VkPipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
     };
 
     VkPipelineColorBlendAttachmentState pipelineColorBlendAttachmentState{
-        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
-                          VK_COLOR_COMPONENT_G_BIT |
-                          VK_COLOR_COMPONENT_B_BIT |
-                          VK_COLOR_COMPONENT_A_BIT
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                              VK_COLOR_COMPONENT_G_BIT |
+                              VK_COLOR_COMPONENT_B_BIT |
+                              VK_COLOR_COMPONENT_A_BIT
     };
 
     VkPipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-        .attachmentCount = 1,
-        .pAttachments = &pipelineColorBlendAttachmentState
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .attachmentCount = 1,
+            .pAttachments = &pipelineColorBlendAttachmentState
     };
 
     VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        .stageCount = pipelineShaderStageCreateInfos.size(),
-        .pStages = pipelineShaderStageCreateInfos.data(),
-        .pVertexInputState = &pipelineVertexInputStateCreateInfo,
-        .pInputAssemblyState = &pipelineInputAssemblyStateCreateInfo,
-        .pViewportState = &pipelineViewportStateCreateInfo,
-        .pRasterizationState = &pipelineRasterizationStateCreateInfo,
-        .pMultisampleState = &pipelineMultisampleStateCreateInfo,
-        .pDepthStencilState = &pipelineDepthStencilStateCreateInfo,
-        .pColorBlendState = &pipelineColorBlendStateCreateInfo,
-        .layout = mPipelineLayout,
-        .renderPass = mRenderPass
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .stageCount = pipelineShaderStageCreateInfos.size(),
+            .pStages = pipelineShaderStageCreateInfos.data(),
+            .pVertexInputState = &pipelineVertexInputStateCreateInfo,
+            .pInputAssemblyState = &pipelineInputAssemblyStateCreateInfo,
+            .pViewportState = &pipelineViewportStateCreateInfo,
+            .pRasterizationState = &pipelineRasterizationStateCreateInfo,
+            .pMultisampleState = &pipelineMultisampleStateCreateInfo,
+            .pDepthStencilState = &pipelineDepthStencilStateCreateInfo,
+            .pColorBlendState = &pipelineColorBlendStateCreateInfo,
+            .layout = mPipelineLayout,
+            .renderPass = mRenderPass
     };
 
     VK_CHECK_ERROR(vkCreateGraphicsPipelines(mDevice,
@@ -642,45 +585,73 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                              &mPipeline));
 
     // ================================================================================
-    // 17. Vertex VkBuffer 생성
+    // 18. Vertex VkBuffer 생성
     // ================================================================================
     constexpr array<Vertex, 3> vertices{
-        Vertex{
-            .position{0.0, -0.5, 0.0},
-            .color{1.0, 0.0, 0.0}
-        },
-        Vertex{
-            .position{0.5, 0.5, 0.0},
-            .color{0.0, 1.0, 0.0}
-        },
-        Vertex{
-            .position{-0.5, 0.5, 0.0},
-            .color{0.0, 0.0, 1.0}
-        },
+            Vertex{
+                    .position{0.0, -0.5, 0.0},
+                    .color{1.0, 0.0, 0.0}
+            },
+            Vertex{
+                    .position{0.5, 0.5, 0.0},
+                    .color{0.0, 1.0, 0.0}
+            },
+            Vertex{
+                    .position{-0.5, 0.5, 0.0},
+                    .color{0.0, 0.0, 1.0}
+            },
     };
     constexpr VkDeviceSize verticesSize{vertices.size() * sizeof(Vertex)};
 
     VkBufferCreateInfo bufferCreateInfo{
-        .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .size = verticesSize,
-        .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+            .sType =VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = verticesSize,
+            .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
     };
 
     VK_CHECK_ERROR(vkCreateBuffer(mDevice, &bufferCreateInfo, nullptr, &mVertexBuffer));
+
+    // ================================================================================
+    // 19. Vertex VkBuffer의 VkMemoryRequirements 얻기
+    // ================================================================================
+    VkMemoryRequirements vertexMemoryRequirements;
+    vkGetBufferMemoryRequirements(mDevice, mVertexBuffer, &vertexMemoryRequirements);
+
+    // ================================================================================
+    // 20. Vertex VkDeviceMemory를 할당 할 수 있는 메모리 타입 인덱스 얻기
+    // ================================================================================
+    uint32_t vertexMemoryTypeIndex;
+    VK_CHECK_ERROR(vkGetMemoryTypeIndex(mPhysicalDeviceMemoryProperties,
+                                        vertexMemoryRequirements,
+                                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                                        &vertexMemoryTypeIndex));
+
+    // ================================================================================
+    // 21. Vertex VkDeviceMemory 할당
+    // ================================================================================
+    VkMemoryAllocateInfo vertexMemoryAllocateInfo{
+            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .allocationSize = vertexMemoryRequirements.size,
+            .memoryTypeIndex = vertexMemoryTypeIndex
+    };
+
+    VK_CHECK_ERROR(vkAllocateMemory(mDevice, &vertexMemoryAllocateInfo, nullptr, &mVertexMemory));
 }
 
 VkRenderer::~VkRenderer() {
+    vkFreeMemory(mDevice, mVertexMemory, nullptr);
     vkDestroyBuffer(mDevice, mVertexBuffer, nullptr);
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
     vkDestroyPipeline(mDevice, mPipeline, nullptr);
     vkDestroyShaderModule(mDevice, mVertexShaderModule, nullptr);
     vkDestroyShaderModule(mDevice, mFragmentShaderModule, nullptr);
-    for (auto framebuffer : mFramebuffers) {
+    for (auto framebuffer: mFramebuffers) {
         vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
     }
     mFramebuffers.clear();
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
-    for (auto imageView : mSwapchainImageViews) {
+    for (auto imageView: mSwapchainImageViews) {
         vkDestroyImageView(mDevice, imageView, nullptr);
     }
     mSwapchainImageViews.clear();
@@ -732,14 +703,14 @@ void VkRenderer::render() {
     // 5. VkRenderPass 시작
     // ================================================================================
     VkRenderPassBeginInfo renderPassBeginInfo{
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass = mRenderPass,
-        .framebuffer = framebuffer,
-        .renderArea{
-            .extent = mSwapchainImageExtent
-        },
-        .clearValueCount = 1,
-        .pClearValues = &mClearValue
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = mRenderPass,
+            .framebuffer = framebuffer,
+            .renderArea{
+                    .extent = mSwapchainImageExtent
+            },
+            .clearValueCount = 1,
+            .pClearValues = &mClearValue
     };
 
     vkCmdBeginRenderPass(mCommandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);

@@ -163,4 +163,23 @@ vkCompileShader(std::string_view shaderCode, VkShaderType shaderType,
     return VK_SUCCESS;
 }
 
+inline VkResult
+vkGetMemoryTypeIndex(const VkPhysicalDeviceMemoryProperties &physicalDeviceMemoryProperties,
+                     const VkMemoryRequirements &memoryRequirements,
+                     VkMemoryPropertyFlags memoryPropertyFlags,
+                     uint32_t *memoryTypeIndex) {
+    for (auto i = 0; i != physicalDeviceMemoryProperties.memoryTypeCount; ++i) {
+        if (memoryRequirements.memoryTypeBits & (1 << i)) {
+            if ((physicalDeviceMemoryProperties.memoryTypes[i].propertyFlags &
+                 memoryPropertyFlags) == memoryPropertyFlags) {
+                *memoryTypeIndex = i;
+                return VK_SUCCESS;
+            }
+        }
+    }
+
+    *memoryTypeIndex = UINT32_MAX;
+    return VK_ERROR_UNKNOWN;
+}
+
 #endif //VULKANEX_VKUTIL_H
