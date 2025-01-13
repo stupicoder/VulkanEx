@@ -39,6 +39,7 @@ private:
     VkShaderModule mFragmentShaderModule;
     VkPipelineLayout mPipelineLayout;
     VkPipeline mPipeline;
+    VkBuffer mVertexBuffer;
 };
 
 
