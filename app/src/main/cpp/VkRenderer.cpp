@@ -510,9 +510,119 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                         &fragmentShaderModuleCreateInfo,
                                         nullptr,
                                         &mFragmentShaderModule));
+
+    // ================================================================================
+    // 15. VkPipelineLayout 생성
+    // ================================================================================
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+    };
+
+    VK_CHECK_ERROR(vkCreatePipelineLayout(mDevice,
+                                          &pipelineLayoutCreateInfo,
+                                          nullptr,
+                                          &mPipelineLayout));
+
+    // ================================================================================
+    // 16. Graphics VkPipeline 생성
+    // ================================================================================
+    array<VkPipelineShaderStageCreateInfo, 2> pipelineShaderStageCreateInfos{
+        VkPipelineShaderStageCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_VERTEX_BIT,
+            .module = mVertexShaderModule,
+            .pName = "main"
+        },
+        VkPipelineShaderStageCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .module = mFragmentShaderModule,
+            .pName = "main"
+        }
+    };
+
+    VkPipelineVertexInputStateCreateInfo pipelineVertexInputStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+    };
+
+    VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+    };
+
+    VkViewport viewport{
+        .width = static_cast<float>(mSwapchainImageExtent.width),
+        .height = static_cast<float>(mSwapchainImageExtent.height),
+        .maxDepth = 1.0f
+    };
+
+    VkRect2D scissor{
+        .extent = mSwapchainImageExtent
+    };
+
+    VkPipelineViewportStateCreateInfo pipelineViewportStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .viewportCount = 1,
+        .pViewports = &viewport,
+        .scissorCount = 1,
+        .pScissors = &scissor
+    };
+
+    VkPipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .polygonMode = VK_POLYGON_MODE_FILL,
+        .cullMode = VK_CULL_MODE_NONE,
+        .lineWidth = 1.0f
+    };
+
+    VkPipelineMultisampleStateCreateInfo pipelineMultisampleStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+        .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+    };
+
+    VkPipelineDepthStencilStateCreateInfo pipelineDepthStencilStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+    };
+
+    VkPipelineColorBlendAttachmentState pipelineColorBlendAttachmentState{
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                          VK_COLOR_COMPONENT_G_BIT |
+                          VK_COLOR_COMPONENT_B_BIT |
+                          VK_COLOR_COMPONENT_A_BIT
+    };
+
+    VkPipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .attachmentCount = 1,
+        .pAttachments = &pipelineColorBlendAttachmentState
+    };
+
+    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .stageCount = pipelineShaderStageCreateInfos.size(),
+        .pStages = pipelineShaderStageCreateInfos.data(),
+        .pVertexInputState = &pipelineVertexInputStateCreateInfo,
+        .pInputAssemblyState = &pipelineInputAssemblyStateCreateInfo,
+        .pViewportState = &pipelineViewportStateCreateInfo,
+        .pRasterizationState = &pipelineRasterizationStateCreateInfo,
+        .pMultisampleState = &pipelineMultisampleStateCreateInfo,
+        .pDepthStencilState = &pipelineDepthStencilStateCreateInfo,
+        .pColorBlendState = &pipelineColorBlendStateCreateInfo,
+        .layout = mPipelineLayout,
+        .renderPass = mRenderPass
+    };
+
+    VK_CHECK_ERROR(vkCreateGraphicsPipelines(mDevice,
+                                             VK_NULL_HANDLE,
+                                             1,
+                                             &graphicsPipelineCreateInfo,
+                                             nullptr,
+                                             &mPipeline));
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+    vkDestroyPipeline(mDevice, mPipeline, nullptr);
     vkDestroyShaderModule(mDevice, mVertexShaderModule, nullptr);
     vkDestroyShaderModule(mDevice, mFragmentShaderModule, nullptr);
     for (auto framebuffer : mFramebuffers) {
@@ -585,24 +695,34 @@ void VkRenderer::render() {
     vkCmdBeginRenderPass(mCommandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     // ================================================================================
-    // 6. VkRenderPass 종료
+    // 6. Graphics VkPipeline 바인드
+    // ================================================================================
+    vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
+
+    // ================================================================================
+    // 7. 삼각형 그리기
+    // ================================================================================
+    vkCmdDraw(mCommandBuffer, 3, 1, 0, 0);
+
+    // ================================================================================
+    // 8. VkRenderPass 종료
     // ================================================================================
     vkCmdEndRenderPass(mCommandBuffer);
 
     // ================================================================================
-    // 7. Clear 색상 갱신
+    // 9. Clear 색상 갱신
     // ================================================================================
     for (auto i = 0; i != 4; ++i) {
         mClearValue.color.float32[i] = fmodf(mClearValue.color.float32[i] + 0.01, 1.0);
     }
 
     // ================================================================================
-    // 8. VkCommandBuffer 기록 종료
+    // 10. VkCommandBuffer 기록 종료
     // ================================================================================
     VK_CHECK_ERROR(vkEndCommandBuffer(mCommandBuffer));
 
     // ================================================================================
-    // 9. VkCommandBuffer 제출
+    // 11. VkCommandBuffer 제출
     // ================================================================================
     VkSubmitInfo submitInfo{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -615,7 +735,7 @@ void VkRenderer::render() {
     VK_CHECK_ERROR(vkQueueSubmit(mQueue, 1, &submitInfo, VK_NULL_HANDLE));
 
     // ================================================================================
-    // 10. VkImage 화면에 출력
+    // 12. VkImage 화면에 출력
     // ================================================================================
     VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
