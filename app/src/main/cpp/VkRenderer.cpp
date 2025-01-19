@@ -482,7 +482,28 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                         &mFragmentShaderModule));
 
     // ================================================================================
-    // 16. VkPipelineLayout 생성
+    // 16. VkDescriptorSetLayout 생성
+    // ================================================================================
+    VkDescriptorSetLayoutBinding descriptorSetLayoutBinding{
+        .binding = 0,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1,
+        .stageFlags = VK_SHADER_STAGE_VERTEX_BIT
+    };
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+        .bindingCount = 1,
+        .pBindings = &descriptorSetLayoutBinding
+    };
+
+    VK_CHECK_ERROR(vkCreateDescriptorSetLayout(mDevice,
+                                               &descriptorSetLayoutCreateInfo,
+                                               nullptr,
+                                               &mDescriptorSetLayout));
+
+    // ================================================================================
+    // 17. VkPipelineLayout 생성
     // ================================================================================
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
@@ -494,7 +515,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                           &mPipelineLayout));
 
     // ================================================================================
-    // 17. Graphics VkPipeline 생성
+    // 18. Graphics VkPipeline 생성
     // ================================================================================
     array<VkPipelineShaderStageCreateInfo, 2> pipelineShaderStageCreateInfos{
             VkPipelineShaderStageCreateInfo{
@@ -615,7 +636,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                              &mPipeline));
 
     // ================================================================================
-    // 18. Vertex VkBuffer 생성
+    // 19. Vertex VkBuffer 생성
     // ================================================================================
     constexpr array<Vertex, 3> vertices{
             Vertex{
@@ -642,13 +663,13 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     VK_CHECK_ERROR(vkCreateBuffer(mDevice, &vertexBufferCreateInfo, nullptr, &mVertexBuffer));
 
     // ================================================================================
-    // 19. Vertex VkBuffer의 VkMemoryRequirements 얻기
+    // 20. Vertex VkBuffer의 VkMemoryRequirements 얻기
     // ================================================================================
     VkMemoryRequirements vertexMemoryRequirements;
     vkGetBufferMemoryRequirements(mDevice, mVertexBuffer, &vertexMemoryRequirements);
 
     // ================================================================================
-    // 20. Vertex VkDeviceMemory를 할당 할 수 있는 메모리 타입 인덱스 얻기
+    // 21. Vertex VkDeviceMemory를 할당 할 수 있는 메모리 타입 인덱스 얻기
     // ================================================================================
     uint32_t vertexMemoryTypeIndex;
     VK_CHECK_ERROR(vkGetMemoryTypeIndex(mPhysicalDeviceMemoryProperties,
@@ -658,7 +679,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                                         &vertexMemoryTypeIndex));
 
     // ================================================================================
-    // 21. Vertex VkDeviceMemory 할당
+    // 22. Vertex VkDeviceMemory 할당
     // ================================================================================
     VkMemoryAllocateInfo vertexMemoryAllocateInfo{
             .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -669,12 +690,12 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     VK_CHECK_ERROR(vkAllocateMemory(mDevice, &vertexMemoryAllocateInfo, nullptr, &mVertexMemory));
 
     // ================================================================================
-    // 22. Vertex VkBuffer와 Vertex VkDeviceMemory 바인드
+    // 23. Vertex VkBuffer와 Vertex VkDeviceMemory 바인드
     // ================================================================================
     VK_CHECK_ERROR(vkBindBufferMemory(mDevice, mVertexBuffer, mVertexMemory, 0));
 
     // ================================================================================
-    // 23. Vertex 데이터 복사
+    // 24. Vertex 데이터 복사
     // ================================================================================
     void* vertexData;
     VK_CHECK_ERROR(vkMapMemory(mDevice, mVertexMemory, 0, vertexDataSize, 0, &vertexData));
@@ -685,6 +706,7 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
 VkRenderer::~VkRenderer() {
     vkFreeMemory(mDevice, mVertexMemory, nullptr);
     vkDestroyBuffer(mDevice, mVertexBuffer, nullptr);
+    vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
     vkDestroyPipeline(mDevice, mPipeline, nullptr);
     vkDestroyShaderModule(mDevice, mVertexShaderModule, nullptr);

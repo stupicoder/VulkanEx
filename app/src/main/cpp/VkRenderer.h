@@ -38,6 +38,7 @@ private:
     std::vector<VkFramebuffer> mFramebuffers;
     VkShaderModule mVertexShaderModule;
     VkShaderModule mFragmentShaderModule;
+    VkDescriptorSetLayout mDescriptorSetLayout;
     VkPipelineLayout mPipelineLayout;
     VkPipeline mPipeline;
     VkBuffer mVertexBuffer;
