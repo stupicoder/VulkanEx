@@ -652,11 +652,11 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
                     .color{0.0, 0.0, 1.0}
             },
     };
-    constexpr VkDeviceSize vertexDataSize{vertices.size() * sizeof(Vertex)};
+    constexpr VkDeviceSize verticesSize{vertices.size() * sizeof(Vertex)};
 
     VkBufferCreateInfo vertexBufferCreateInfo{
             .sType =VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .size = vertexDataSize,
+            .size = verticesSize,
             .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
     };
 
@@ -697,13 +697,35 @@ VkRenderer::VkRenderer(ANativeWindow *window) {
     // ================================================================================
     // 24. Vertex 데이터 복사
     // ================================================================================
-    void* vertexData;
-    VK_CHECK_ERROR(vkMapMemory(mDevice, mVertexMemory, 0, vertexDataSize, 0, &vertexData));
-    memcpy(vertexData, vertices.data(), vertexDataSize);
+    void *verticesData;
+    VK_CHECK_ERROR(vkMapMemory(mDevice, mVertexMemory, 0, verticesSize, 0, &verticesData));
+    memcpy(verticesData, vertices.data(), verticesSize);
     vkUnmapMemory(mDevice, mVertexMemory);
+
+    // ================================================================================
+    // 25. VkDescriptorPool 생성
+    // ================================================================================
+    VkDescriptorPoolSize descriptorPoolSize{
+        .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .descriptorCount = 1
+    };
+
+    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+        .maxSets = 1,
+        .poolSizeCount = 1,
+        .pPoolSizes = &descriptorPoolSize
+    };
+
+    VK_CHECK_ERROR(vkCreateDescriptorPool(mDevice,
+                                          &descriptorPoolCreateInfo,
+                                          nullptr,
+                                          &mDescriptorPool));
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
     vkFreeMemory(mDevice, mVertexMemory, nullptr);
     vkDestroyBuffer(mDevice, mVertexBuffer, nullptr);
     vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);

@@ -43,6 +43,7 @@ private:
     VkPipeline mPipeline;
     VkBuffer mVertexBuffer;
     VkDeviceMemory mVertexMemory;
+    VkDescriptorPool mDescriptorPool;
 };
 
 
