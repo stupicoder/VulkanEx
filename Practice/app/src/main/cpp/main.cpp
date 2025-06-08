@@ -1,6 +1,7 @@
 #include <jni.h>
 
 #include "AndroidOut.h"
+#include "VkRenderer.h"
 
 #include <game-activity/GameActivity.cpp>
 #include <game-text-input/gametextinput.cpp>
@@ -19,9 +20,13 @@ extern "C" {
 void handle_cmd(android_app *pApp, int32_t cmd) {
     switch (cmd) {
         case APP_CMD_INIT_WINDOW:
-            aout << "Hello Vulkan!" << std::endl;
+            pApp->userData = new VkRenderer();
             break;
         case APP_CMD_TERM_WINDOW:
+            if (pApp->userData) {
+                delete static_cast<VkRenderer*>(pApp->userData);
+                pApp->userData = nullptr;
+            }
             break;
         default:
             break;

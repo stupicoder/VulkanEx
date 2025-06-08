@@ -10,6 +10,9 @@ project("practice")
 add_library(practice SHARED
         main.cpp
         AndroidOut.cpp
+        VkRenderer.h
+        VkRenderer.cpp
+        VkUtil.h
 )
 
 # Searches for a package provided by the game activity dependency
