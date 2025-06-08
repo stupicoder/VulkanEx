@@ -1,0 +1,54 @@
+# =================================================================
+#  Android Studio / Gradle 용 .gitignore
+# =================================================================
+
+# 빌드 관련 파일 및 폴더
+# 컴파일된 코드, APK/AAB 파일 등 모든 빌드 결과물이 여기에 생성됩니다.
+# 절대로 Git에 포함하면 안 됩니다.
+*.apk
+*.aab
+*.ap_
+*.dex
+build/
+*/build/
+
+# 로컬 환경 설정 파일
+# 이 파일에는 개인 컴퓨터의 안드로이드 SDK 경로 등 민감한 정보가 포함됩니다.
+# 팀원마다 경로가 다르므로 반드시 제외해야 합니다.
+local.properties
+
+# Android Studio 및 IntelliJ IDE 관련 파일
+# 개인의 IDE 설정, 캐시, 작업 내역 등이 저장됩니다.
+.idea/
+.gradle/
+*.iml
+*.hprof
+captures/
+.externalNativeBuild/
+.navigation/
+
+# Gradle 관련 파일
+gradle-app.setting
+*.jar
+*~
+.gradletasknamecache
+
+# Mac, Windows, Linux 시스템 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 크래시 보고 및 로그 파일
+*.log
+
+# 서명(키스토어) 파일 - !! 매우 중요 !!
+# 앱 출시 서명에 사용되는 키 파일입니다. 외부에 유출되면 안 됩니다.
+# 별도의 안전한 장소에 백업하고, 절대로 Git에 올리지 마세요.
+*.jks
+*.keystore
+
+# Google 서비스 파일
+# google-services.json은 경우에 따라 포함하기도 하지만,
+# 보통 CI/CD 환경에서 별도로 주입하므로 제외하는 것이 안전합니다.
+# 만약 팀원 모두가 동일한 파일을 공유해야 한다면 이 줄을 지우거나 주석 처리하세요.
+google-services.json
