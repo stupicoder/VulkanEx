@@ -12,16 +12,36 @@
 using namespace std;
 
 VkRenderer::VkRenderer() {
-    uint32_t layerCount;
-    VK_CHECK_ERROR(vkEnumerateInstanceLayerProperties(&layerCount, nullptr));
+    VkApplicationInfo applicationInfo{
+        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        .pApplicationName = "Practice Vulkan",
+        .applicationVersion = VK_MAKE_API_VERSION(0, 0, 1, 0),
+        .apiVersion = VK_MAKE_API_VERSION(0, 1, 3, 0)
+    };
 
-    vector<VkLayerProperties> layerProps(layerCount);
-    VK_CHECK_ERROR(vkEnumerateInstanceLayerProperties(&layerCount, layerProps.data()));
+    uint32_t instanceLayerCount;
+    VK_CHECK_ERROR(vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr));
 
-    for (const auto& layerProp : layerProps) {
-        aout << layerProp.layerName << endl;
+    vector<VkLayerProperties> instanceLayerProperties(instanceLayerCount);
+    VK_CHECK_ERROR(vkEnumerateInstanceLayerProperties(&instanceLayerCount,
+                                                      instanceLayerProperties.data()));
+
+    vector<const char*> instanceLayerNames;
+    for (const auto& layerProperty : instanceLayerProperties)
+    {
+        instanceLayerNames.push_back(layerProperty.layerName);
     }
+
+    VkInstanceCreateInfo instanceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+        .pApplicationInfo = &applicationInfo,
+        .enabledLayerCount = static_cast<uint32_t>(instanceLayerCount),
+        .ppEnabledLayerNames = instanceLayerNames.data()
+    };
+
+    VK_CHECK_ERROR(vkCreateInstance(&instanceCreateInfo, nullptr, &mInstance));
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroyInstance(mInstance, nullptr);
 }
