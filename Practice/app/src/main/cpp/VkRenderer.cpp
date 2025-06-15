@@ -31,17 +31,37 @@ VkRenderer::VkRenderer() {
     VK_CHECK_ERROR(vkEnumerateInstanceLayerProperties(&instanceLayerCount,
                                                       instanceLayerProperties.data()));
 
-    vector<const char*> instanceLayerNames;
-    for (const auto& layerProperty : instanceLayerProperties)
-    {
-        instanceLayerNames.push_back(layerProperty.layerName);
+    vector<const char *> instanceLayerNames;
+    for (const auto &properties: instanceLayerProperties) {
+        instanceLayerNames.push_back(properties.layerName);
     }
+
+    uint32_t instanceExtensionCount;
+    VK_CHECK_ERROR(vkEnumerateInstanceExtensionProperties(nullptr,
+                                                          &instanceExtensionCount,
+                                                          nullptr));
+
+    vector<VkExtensionProperties> instanceExtensionProperties(instanceExtensionCount);
+    VK_CHECK_ERROR(vkEnumerateInstanceExtensionProperties(nullptr,
+                                                          &instanceExtensionCount,
+                                                          instanceExtensionProperties.data()));
+
+    vector<const char*> instanceExtensionNames;
+    for (const auto& properties : instanceExtensionProperties) {
+        if (properties.extensionName == string("VK_KHR_surface") ||
+            properties.extensionName == string("VK_KHR_android_surface")) {
+            instanceExtensionNames.push_back(properties.extensionName);
+        }
+    }
+    assert(instanceExtensionNames.size() == 2);
 
     VkInstanceCreateInfo instanceCreateInfo{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pApplicationInfo = &applicationInfo,
-        .enabledLayerCount = static_cast<uint32_t>(instanceLayerCount),
-        .ppEnabledLayerNames = instanceLayerNames.data()
+        .enabledLayerCount = static_cast<uint32_t>(instanceLayerNames.size()),
+        .ppEnabledLayerNames = instanceLayerNames.data(),
+        .enabledExtensionCount = static_cast<uint32_t>(instanceExtensionNames.size()),
+        .ppEnabledExtensionNames = instanceExtensionNames.data()
     };
 
     VK_CHECK_ERROR(vkCreateInstance(&instanceCreateInfo, nullptr, &mInstance));
@@ -53,10 +73,10 @@ VkRenderer::VkRenderer() {
     VK_CHECK_ERROR(vkEnumeratePhysicalDevices(mInstance, &physicalDeviceCount, nullptr));
 
     vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-    VK_CHECK_ERROR(vkEnumeratePhysicalDevices(
-            mInstance, &physicalDeviceCount, physicalDevices.data()));
+    VK_CHECK_ERROR(vkEnumeratePhysicalDevices(mInstance,
+                                              &physicalDeviceCount,
+                                              physicalDevices.data()));
 
-    // 간단한 예제를 위해 첫 번째 VkPhysicalDevice를 사용합니다.
     mPhysicalDevice = physicalDevices[0];
 
     VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -102,10 +122,32 @@ VkRenderer::VkRenderer() {
         .pQueuePriorities = queuePriorities.data()
     };
 
+    uint32_t deviceExtensionCount;
+    VK_CHECK_ERROR(vkEnumerateDeviceExtensionProperties(mPhysicalDevice,
+                                                        nullptr,
+                                                        &deviceExtensionCount,
+                                                        nullptr));
+
+    vector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionCount);
+    VK_CHECK_ERROR(vkEnumerateDeviceExtensionProperties(mPhysicalDevice,
+                                                        nullptr,
+                                                        &deviceExtensionCount,
+                                                        deviceExtensionProperties.data()));
+
+    vector<const char*> deviceExtenstionNames;
+    for (const auto& properties : deviceExtensionProperties) {
+        if (properties.extensionName == string("VK_KHR_swapchain")) {
+            deviceExtenstionNames.push_back(properties.extensionName);
+        }
+    }
+    assert(deviceExtenstionNames.size() == 1);
+
     VkDeviceCreateInfo deviceCreateInfo{
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount = 1,
-        .pQueueCreateInfos = &deviceQueueCreateInfo
+        .pQueueCreateInfos = &deviceQueueCreateInfo,
+        .enabledExtensionCount = static_cast<uint32_t>(deviceExtenstionNames.size()),
+        .ppEnabledExtensionNames = deviceExtenstionNames.data()
     };
 
     VK_CHECK_ERROR(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice));
