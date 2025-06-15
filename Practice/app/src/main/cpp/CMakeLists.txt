@@ -19,16 +19,14 @@ add_library(practice SHARED
 find_package(game-activity REQUIRED CONFIG)
 find_package(Vulkan REQUIRED)
 
+target_compile_definitions(practice PRIVATE
+        VK_USE_PLATFORM_ANDROID_KHR)
+
 # Configure libraries CMake uses to link your target library.
 target_link_libraries(practice
         # The game activity
         game-activity::game-activity
 
-        # EGL and other dependent libraries required for drawing
-        # and interacting with Android system
-        EGL
-        GLESv3
-        jnigraphics
         android
         log
         Vulkan::Vulkan

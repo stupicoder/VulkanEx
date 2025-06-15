@@ -20,7 +20,7 @@ extern "C" {
 void handle_cmd(android_app *pApp, int32_t cmd) {
     switch (cmd) {
         case APP_CMD_INIT_WINDOW:
-            pApp->userData = new VkRenderer();
+            pApp->userData = new VkRenderer(pApp->window);
             break;
         case APP_CMD_TERM_WINDOW:
             if (pApp->userData) {

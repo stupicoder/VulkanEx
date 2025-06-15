@@ -9,7 +9,7 @@
 
 class VkRenderer {
 public:
-    VkRenderer();
+    VkRenderer(ANativeWindow* window);
     ~VkRenderer();
 
 private:
@@ -18,6 +18,7 @@ private:
     uint32_t mQueueFamilyIndex;
     VkDevice mDevice;
     VkQueue mQueue;
+    VkSurfaceKHR mSurface;
 };
 
 

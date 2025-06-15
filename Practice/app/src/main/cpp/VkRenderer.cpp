@@ -13,7 +13,7 @@
 
 using namespace std;
 
-VkRenderer::VkRenderer() {
+VkRenderer::VkRenderer(ANativeWindow* window) {
     // ================================================================================
     // 1. VkInstance 생성
     // ================================================================================
@@ -134,27 +134,45 @@ VkRenderer::VkRenderer() {
                                                         &deviceExtensionCount,
                                                         deviceExtensionProperties.data()));
 
-    vector<const char*> deviceExtenstionNames;
+    vector<const char*> deviceExtensionNames;
     for (const auto& properties : deviceExtensionProperties) {
         if (properties.extensionName == string("VK_KHR_swapchain")) {
-            deviceExtenstionNames.push_back(properties.extensionName);
+            deviceExtensionNames.push_back(properties.extensionName);
         }
     }
-    assert(deviceExtenstionNames.size() == 1);
+    assert(deviceExtensionNames.size() == 1);
 
     VkDeviceCreateInfo deviceCreateInfo{
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount = 1,
         .pQueueCreateInfos = &deviceQueueCreateInfo,
-        .enabledExtensionCount = static_cast<uint32_t>(deviceExtenstionNames.size()),
-        .ppEnabledExtensionNames = deviceExtenstionNames.data()
+        .enabledExtensionCount = static_cast<uint32_t>(deviceExtensionNames.size()),
+        .ppEnabledExtensionNames = deviceExtensionNames.data()
     };
 
     VK_CHECK_ERROR(vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice));
     vkGetDeviceQueue(mDevice, mQueueFamilyIndex, 0, &mQueue);
+
+    // ================================================================================
+    // 4. VkSurface 생성
+    // ================================================================================
+    VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR,
+        .window = window
+    };
+
+    VK_CHECK_ERROR(vkCreateAndroidSurfaceKHR(mInstance, &surfaceCreateInfo, nullptr, &mSurface));
+
+    VkBool32 supported;
+    VK_CHECK_ERROR(vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice,
+                                                        mQueueFamilyIndex,
+                                                        mSurface,
+                                                        &supported));
+    assert(supported);
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
     vkDestroyDevice(mDevice, nullptr);
     vkDestroyInstance(mInstance, nullptr);
 }
