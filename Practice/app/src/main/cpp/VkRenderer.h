@@ -6,6 +6,7 @@
 #define PRACTICE_VKRENDERER_H
 
 #include <vulkan/vulkan.h>
+#include <vector>
 
 class VkRenderer {
 public:
@@ -19,6 +20,8 @@ private:
     VkDevice mDevice;
     VkQueue mQueue;
     VkSurfaceKHR mSurface;
+    VkSwapchainKHR mSwapchain;
+    std::vector<VkImage> mSwapchainImages;
 };
 
 
