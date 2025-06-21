@@ -10,8 +10,10 @@
 
 class VkRenderer {
 public:
-    VkRenderer(ANativeWindow* window);
+    explicit VkRenderer(ANativeWindow* window);
     ~VkRenderer();
+
+    void render();
 
 private:
     VkInstance mInstance;

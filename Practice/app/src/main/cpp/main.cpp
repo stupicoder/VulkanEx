@@ -95,6 +95,7 @@ void android_main(struct android_app *pApp) {
 
         // Check if any user data is associated. This is assigned in handle_cmd
         if (pApp->userData) {
+            static_cast<VkRenderer*>(pApp->userData)->render();
         }
     } while (!pApp->destroyRequested);
 }
