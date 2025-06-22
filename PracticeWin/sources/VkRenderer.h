@@ -12,6 +12,9 @@ public:
 
 private:
     VkInstance mInstance;
+#if _DEBUG
+    VkDebugUtilsMessengerEXT mDebugMessenger;
+#endif
     VkPhysicalDevice mPhysicalDevice;
     uint32_t mQueueFamilyIndex;
     VkDevice mDevice;

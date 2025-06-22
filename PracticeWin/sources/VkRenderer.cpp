@@ -23,9 +23,37 @@ VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     cerr << "[Vulkan Debug] " << pCallbackData->pMessage << endl;
     return VK_FALSE;
 }
+
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
+    const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+    const VkAllocationCallbacks* pAllocator,
+    VkDebugUtilsMessengerEXT* pMessenger) {
+    
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+        instance, "vkCreateDebugUtilsMessengerEXT");
+
+    if (func != nullptr)
+        return func(instance, pCreateInfo, pAllocator, pMessenger);
+    else
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+
+void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger,
+    const VkAllocationCallbacks* pAllocator) {
+    
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
+        instance, "vkDestroyDebugUtilsMessengerEXT");
+
+    if (func != nullptr)
+        func(instance, messenger, pAllocator);
+}
 #endif
 
-void CreateInstance(VkInstance& OutInstance)
+void CreateInstance(VkInstance& OutInstance
+#if _DEBUG
+    , VkDebugUtilsMessengerEXT InDebugMessenger
+#endif
+    )
 {
     VkApplicationInfo applicationInfo{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -44,7 +72,8 @@ void CreateInstance(VkInstance& OutInstance)
     vector<const char*> instanceLayerNames;
     for (const VkLayerProperties& property : instanceLayerProperties)
     {
-        if (property.layerName == string("VK_LAYER_EOS_Overlay"))
+        if (property.layerName == string("VK_LAYER_EOS_Overlay") ||
+            property.layerName == string("VK_LAYER_RENDERDOC_Capture"))
         {
             cout << "except- " << property.layerName <<  endl;
             continue;
@@ -107,6 +136,10 @@ void CreateInstance(VkInstance& OutInstance)
     };
 
     VK_CHECK_ERROR(vkCreateInstance(&instanceCreateInfo, nullptr, &OutInstance));
+
+#if _DEBUG
+    CreateDebugUtilsMessengerEXT(OutInstance, &debugCreateInfo, nullptr, &InDebugMessenger);
+#endif
 }
 
 void SelectPhysicalDevice(VkInstance& InInstance, VkPhysicalDevice& OutDevice)
@@ -237,7 +270,11 @@ void CreateSurface(VkPhysicalDevice& InPhysicalDevice, uint32_t InQueueFamilyInd
 
 VkRenderer::VkRenderer(void* InWindowHandle)
 {
-    CreateInstance(mInstance);
+    CreateInstance(mInstance
+#if _DEBUG
+        , mDebugMessenger
+#endif
+        );
     SelectPhysicalDevice(mInstance, mPhysicalDevice);
     CreateDevice(mPhysicalDevice, mQueueFamilyIndex, mQueue, mDevice);
     CreateSurface(mPhysicalDevice, mQueueFamilyIndex, mInstance, InWindowHandle, mSurface);
@@ -247,6 +284,9 @@ VkRenderer::~VkRenderer()
 {
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
     vkDestroyDevice(mDevice, nullptr);
+#if _DEBUG
+    DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
+#endif
     vkDestroyInstance(mInstance, nullptr);
 }
 
