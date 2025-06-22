@@ -5,8 +5,21 @@
 #include <vector>
 #include <array>
 #include <iomanip>
+#include <cassert>
 
 using namespace std;
+
+#if _DEBUG
+VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData)
+{
+    cerr << "[Vulkan Debug] " << pCallbackData->pMessage << endl;
+    return VK_FALSE;
+}
+#endif
 
 void CreateInstance(VkInstance& OutInstance)
 {
@@ -29,19 +42,64 @@ void CreateInstance(VkInstance& OutInstance)
     {
         if (property.layerName == string("VK_LAYER_EOS_Overlay"))
         {
-            cout << "\t" << "except--" << property.layerName <<  endl;
+            cout << "except- " << property.layerName <<  endl;
             continue;
         }
         instanceLayerNames.push_back(property.layerName);
         cout << "\t" << property.layerName << endl;
     }
 
+    uint32_t instanceExtensionCount;
+    VK_CHECK_ERROR(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, nullptr));
+
+    vector<VkExtensionProperties> instanceExtentionProperties(instanceExtensionCount);
+    VK_CHECK_ERROR(vkEnumerateInstanceExtensionProperties(nullptr, &instanceExtensionCount, instanceExtentionProperties.data()));
+
+    cout << "instance extension names" << endl;
+    vector<const char*> instanceExtensionNames;
+    for (const VkExtensionProperties& properties : instanceExtentionProperties)
+    {
+        if (properties.extensionName == string("VK_KHR_surface") ||
+            properties.extensionName == string("VK_KHR_win32_surface") ||
+#if _DEBUG
+            properties.extensionName == string(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)  // "VK_EXT_debug_utils"
+#endif
+            )
+        {
+            instanceExtensionNames.push_back(properties.extensionName);
+            cout << "include-" << properties.extensionName << endl;
+            continue;
+        }
+
+        cout << "\t" << properties.extensionName << endl;
+    }
+    assert(instanceExtensionNames.size() >= 2);
+
+#if _DEBUG
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+    debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debugCreateInfo.messageSeverity =
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debugCreateInfo.messageType =
+        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    debugCreateInfo.pfnUserCallback = DebugCallback;
+    debugCreateInfo.pUserData = nullptr;
+#endif
 
     VkInstanceCreateInfo instanceCreateInfo{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+#if _DEBUG
+        .pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo,
+#endif
         .pApplicationInfo = &applicationInfo,
         .enabledLayerCount = static_cast<uint32_t>(instanceLayerNames.size()),
-        .ppEnabledLayerNames = instanceLayerNames.data()
+        .ppEnabledLayerNames = instanceLayerNames.data(),
+        .enabledExtensionCount = static_cast<uint32_t>(instanceExtensionNames.size()),
+        .ppEnabledExtensionNames = instanceExtensionNames.data()
     };
 
     VK_CHECK_ERROR(vkCreateInstance(&instanceCreateInfo, nullptr, &OutInstance));
@@ -124,10 +182,32 @@ void CreateDevice(VkPhysicalDevice& InPhysicalDevice, uint32_t& OutQueueFamilyIn
         .pQueuePriorities = queuePriorites.data()
     };
 
+    uint32_t deviceExtensionCount;
+    VK_CHECK_ERROR(vkEnumerateDeviceExtensionProperties(InPhysicalDevice, nullptr, &deviceExtensionCount, nullptr));
+
+    vector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionCount);
+    VK_CHECK_ERROR(vkEnumerateDeviceExtensionProperties(InPhysicalDevice, nullptr, &deviceExtensionCount, deviceExtensionProperties.data()));
+
+    cout << "device extension names" << endl;
+    vector<const char*> deviceExtensionNames;
+    for (const VkExtensionProperties& properties : deviceExtensionProperties)
+    {
+        if (properties.extensionName == string("VK_KHR_swapchain"))
+        {
+            deviceExtensionNames.push_back(properties.extensionName);
+            cout << "include-" << properties.extensionName << endl;
+            continue;
+        }
+        cout << "\t" << properties.extensionName << endl;
+    }
+    assert(deviceExtensionNames.size() >= 1);
+
     VkDeviceCreateInfo deviceCreateInfo{
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount = 1,
-        .pQueueCreateInfos = &deviceQueueCreateInfo
+        .pQueueCreateInfos = &deviceQueueCreateInfo,
+        .enabledExtensionCount = static_cast<uint32_t>(deviceExtensionNames.size()),
+        .ppEnabledExtensionNames = deviceExtensionNames.data()
     };
 
     VK_CHECK_ERROR(vkCreateDevice(InPhysicalDevice, &deviceCreateInfo, nullptr, &OutDevice));
