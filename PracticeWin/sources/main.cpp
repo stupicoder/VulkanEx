@@ -1,6 +1,8 @@
 #define UNICODE
 #include <windows.h>
 #include <iostream>
+#include <chrono>
+#include <string>
 
 #ifdef _DEBUG
 void CreateConsole()
@@ -54,16 +56,48 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         return 0;
     }
 
-    std::cout << "Window created successfully. Console is attached in Debug mode." << std::endl;
-
     ShowWindow(hwnd, nCmdShow);
 
-    // Run the message loop.
-    MSG msg = { };
-    while (GetMessage(&msg, NULL, 0, 0) > 0)
+    // FPS counter variables
+    auto lastTime = std::chrono::high_resolution_clock::now();
+    int frameCount = 0;
+    double elapsedTime = 0.0;
+
+    // Main game loop
+    bool isRunning = true;
+    while (isRunning)
     {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        MSG msg = { };
+        while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+        {
+            if (msg.message == WM_QUIT)
+            {
+                isRunning = false;
+            }
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        // --- FPS Calculation ---
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> delta = currentTime - lastTime;
+        elapsedTime += delta.count();
+        frameCount++;
+
+        if (elapsedTime >= 1000.0)
+        {
+            double fps = frameCount / (elapsedTime / 1000.0);
+            double ms = elapsedTime / frameCount;
+            
+            std::wstring title = L"Vulkan Window | FPS: " + std::to_wstring((int)fps) + L" | ms: " + std::to_wstring(ms);
+            SetWindowText(hwnd, title.c_str());
+
+            frameCount = 0;
+            elapsedTime = 0.0;
+        }
+        lastTime = currentTime;
+
+        // --- Game logic would go here ---
     }
 
     return 0;
@@ -76,16 +110,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
-
-    case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-            FillRect(hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW+1));
-            EndPaint(hwnd, &ps);
-        }
-        return 0;
-
     }
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
