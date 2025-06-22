@@ -4,6 +4,8 @@
 #include <chrono>
 #include <string>
 
+#include "VkRenderer.h"
+
 #ifdef _DEBUG
 void CreateConsole()
 {
@@ -65,6 +67,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     // Main game loop
     bool isRunning = true;
+    VkRenderer* Renderer = new VkRenderer();
     while (isRunning)
     {
         MSG msg = { };
@@ -98,7 +101,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         lastTime = currentTime;
 
         // --- Game logic would go here ---
+        Renderer->Render();
     }
+    delete Renderer;
+    Renderer = nullptr;
 
     return 0;
 }
