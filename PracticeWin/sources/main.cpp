@@ -67,7 +67,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     // Main game loop
     bool isRunning = true;
-    VkRenderer* Renderer = new VkRenderer();
+    VkRenderer* Renderer = new VkRenderer(hwnd);
     while (isRunning)
     {
         MSG msg = { };

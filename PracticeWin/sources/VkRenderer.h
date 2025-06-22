@@ -5,7 +5,7 @@
 class VkRenderer
 {
 public:
-    VkRenderer();
+    VkRenderer(void* InWindowHandle);
     ~VkRenderer();
 
     void Render();
@@ -16,4 +16,5 @@ private:
     uint32_t mQueueFamilyIndex;
     VkDevice mDevice;
     VkQueue mQueue;
+    VkSurfaceKHR mSurface;
 };

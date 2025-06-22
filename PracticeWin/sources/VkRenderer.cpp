@@ -6,6 +6,10 @@
 #include <array>
 #include <iomanip>
 #include <cassert>
+#include <windows.h>
+#if WIN32
+#include <vulkan/vulkan_win32.h>
+#endif
 
 using namespace std;
 
@@ -214,15 +218,34 @@ void CreateDevice(VkPhysicalDevice& InPhysicalDevice, uint32_t& OutQueueFamilyIn
     vkGetDeviceQueue(OutDevice, OutQueueFamilyIndex, 0, &OutQueue);
 }
 
-VkRenderer::VkRenderer()
+void CreateSurface(VkPhysicalDevice& InPhysicalDevice, uint32_t InQueueFamilyIndex, VkInstance& InInstance, void* InWindowHandle, VkSurfaceKHR& OutSurface)
+{
+#if WIN32
+    VkWin32SurfaceCreateInfoKHR surfaceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+        .hwnd = (HWND)InWindowHandle
+    };
+
+    VK_CHECK_ERROR(vkCreateWin32SurfaceKHR(InInstance, &surfaceCreateInfo, nullptr, &OutSurface));
+
+    VkBool32 supported;
+    VK_CHECK_ERROR(vkGetPhysicalDeviceSurfaceSupportKHR(InPhysicalDevice, InQueueFamilyIndex, OutSurface, &supported));
+
+    assert(supported);
+#endif
+}
+
+VkRenderer::VkRenderer(void* InWindowHandle)
 {
     CreateInstance(mInstance);
     SelectPhysicalDevice(mInstance, mPhysicalDevice);
     CreateDevice(mPhysicalDevice, mQueueFamilyIndex, mQueue, mDevice);
+    CreateSurface(mPhysicalDevice, mQueueFamilyIndex, mInstance, InWindowHandle, mSurface);
 }
 
 VkRenderer::~VkRenderer()
 {
+    vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
     vkDestroyDevice(mDevice, nullptr);
     vkDestroyInstance(mInstance, nullptr);
 }
