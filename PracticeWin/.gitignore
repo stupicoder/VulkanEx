@@ -2,6 +2,7 @@
 /build/
 /binaries/
 *.gfxr
+*.foz
 
 # Visual Studio specific
 .vs/

@@ -84,14 +84,66 @@ void SelectPhysicalDevice(VkInstance& InInstance, VkPhysicalDevice& OutDevice)
     cout << "Select Physical Device 0" << endl;
 }
 
+void CreateDevice(VkPhysicalDevice& InPhysicalDevice, uint32_t& OutQueueFamilyIndex, VkQueue& OutQueue, VkDevice& OutDevice)
+{
+    uint32_t queueFamilyPropertiesCount;
+    vkGetPhysicalDeviceQueueFamilyProperties(InPhysicalDevice, &queueFamilyPropertiesCount, nullptr);
+
+    vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(InPhysicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
+
+    auto PrintQueueFamilyFlags = [](VkQueueFlags& InFlags){
+        cout << "\tFlags " << InFlags << " -";
+        if (InFlags & VK_QUEUE_GRAPHICS_BIT) { cout << " | Graphics"; }
+        if (InFlags & VK_QUEUE_COMPUTE_BIT) { cout << " | Compute"; }
+        if (InFlags & VK_QUEUE_TRANSFER_BIT) { cout << " | Transfer"; }
+        if (InFlags & VK_QUEUE_SPARSE_BINDING_BIT) { cout << " | Sparse Binding"; }
+        if (InFlags & VK_QUEUE_PROTECTED_BIT) { cout << " | Protected"; }
+        if (InFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR) { cout << " | Video Decode"; }
+        if (InFlags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR) { cout << " | Video Encode"; }
+        if (InFlags & VK_QUEUE_OPTICAL_FLOW_BIT_NV) { cout << " | Optical Flow"; }
+        cout << endl;
+    };
+
+    cout << "queue family flags" << endl;
+    OutQueueFamilyIndex = UINT32_MAX;
+    for (uint32_t i = 0; i < queueFamilyPropertiesCount; ++i)
+    {
+        PrintQueueFamilyFlags(queueFamilyProperties[i].queueFlags);
+        if (OutQueueFamilyIndex == UINT32_MAX && queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            OutQueueFamilyIndex = i;
+        }
+    }
+
+    const vector<float> queuePriorites{ 1.0f };
+    VkDeviceQueueCreateInfo deviceQueueCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = OutQueueFamilyIndex,
+        .queueCount = 1,
+        .pQueuePriorities = queuePriorites.data()
+    };
+
+    VkDeviceCreateInfo deviceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .queueCreateInfoCount = 1,
+        .pQueueCreateInfos = &deviceQueueCreateInfo
+    };
+
+    VK_CHECK_ERROR(vkCreateDevice(InPhysicalDevice, &deviceCreateInfo, nullptr, &OutDevice));
+    vkGetDeviceQueue(OutDevice, OutQueueFamilyIndex, 0, &OutQueue);
+}
+
 VkRenderer::VkRenderer()
 {
     CreateInstance(mInstance);
     SelectPhysicalDevice(mInstance, mPhysicalDevice);
+    CreateDevice(mPhysicalDevice, mQueueFamilyIndex, mQueue, mDevice);
 }
 
 VkRenderer::~VkRenderer()
 {
+    vkDestroyDevice(mDevice, nullptr);
     vkDestroyInstance(mInstance, nullptr);
 }
 
