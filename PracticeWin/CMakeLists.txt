@@ -18,8 +18,8 @@ find_package(Vulkan REQUIRED)
 # Automatically find all .cpp files in the 'sources' directory and its subdirectories
 file(GLOB_RECURSE SOURCE_FILES "sources/*.cpp")
 
-# Create executable from the found source files
-add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+# Create a Windows-specific executable (no console window)
+add_executable(${PROJECT_NAME} WIN32 ${SOURCE_FILES})
 
 # Add the 'sources' directory to the include path
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/sources")
