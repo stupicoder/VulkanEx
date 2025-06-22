@@ -29,11 +29,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     // Register the window class.
     const wchar_t CLASS_NAME[]  = L"Sample Window Class";
     
-    WNDCLASS wc = { };
-
-    wc.lpfnWndProc   = WindowProc;
-    wc.hInstance     = hInstance;
-    wc.lpszClassName = CLASS_NAME;
+    WNDCLASS wc = {
+        .lpfnWndProc   = WindowProc,
+        .hInstance     = hInstance,
+        .lpszClassName = CLASS_NAME
+    };
 
     RegisterClass(&wc);
 
