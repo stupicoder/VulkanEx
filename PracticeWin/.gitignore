@@ -1,6 +1,7 @@
 # Build artifacts
 /build/
 /binaries/
+*.gfxr
 
 # Visual Studio specific
 .vs/

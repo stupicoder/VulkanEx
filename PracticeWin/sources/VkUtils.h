@@ -4,7 +4,7 @@
 #include <string>
 #include <vulkan/vulkan.h>
 
-#ifndef DEBUG
+#ifdef _DEBUG
 inline std::string vkToString(VkResult vkResult)
 {
     switch (vkResult) {
@@ -102,3 +102,20 @@ inline std::string vkToString(VkResult vkResult)
         vkFunction;                                                                              \
     } while (0)
 #endif
+
+inline std::string_view vkToString(VkPhysicalDeviceType physicalDeviceType) {
+    switch (physicalDeviceType) {
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+            return "Other";
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            return "Integrated GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            return "Discrete GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            return "Virtual GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            return "CPU";
+        default:
+            return "Unknown";
+    }
+}
