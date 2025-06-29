@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Vulkan/vulkan.h>
+#include <vector>
 
 class VkRenderer
 {
@@ -20,4 +21,6 @@ private:
     VkDevice mDevice;
     VkQueue mQueue;
     VkSurfaceKHR mSurface;
+    VkSwapchainKHR mSwapchain;
+    std::vector<VkImage> mSwapchainImages;
 };
