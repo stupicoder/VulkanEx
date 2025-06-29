@@ -100,8 +100,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         }
         lastTime = currentTime;
 
-        // --- Game logic would go here ---
-        Renderer->Render();
+        if (isRunning)
+        {
+            // --- Game logic would go here ---
+            Renderer->Render();
+        }
     }
     delete Renderer;
     Renderer = nullptr;

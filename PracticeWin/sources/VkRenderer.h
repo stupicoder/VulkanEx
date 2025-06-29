@@ -6,7 +6,7 @@
 class VkRenderer
 {
 public:
-    VkRenderer(void* InWindowHandle);
+    explicit VkRenderer(void* InWindowHandle);
     ~VkRenderer();
 
     void Render();

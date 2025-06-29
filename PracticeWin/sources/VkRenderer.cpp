@@ -93,9 +93,9 @@ void CreateInstance(VkInstance& OutInstance
     for (const VkExtensionProperties& properties : instanceExtentionProperties)
     {
         if (properties.extensionName == string("VK_KHR_surface") ||
-            properties.extensionName == string("VK_KHR_win32_surface") ||
+            properties.extensionName == string("VK_KHR_win32_surface")
 #if _DEBUG
-            properties.extensionName == string(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)  // "VK_EXT_debug_utils"
+            || properties.extensionName == string(VK_EXT_DEBUG_UTILS_EXTENSION_NAME)  // "VK_EXT_debug_utils"
 #endif
             )
         {
@@ -368,8 +368,45 @@ void AllocCommandBuffer(VkDevice& InDevice, VkCommandPool& InCommandPool, VkComm
     };
 
     VK_CHECK_ERROR(vkAllocateCommandBuffers(InDevice, &commandBufferAllocateInfo, &OutCommandBuffer));
+}
 
-    VK_CHECK_ERROR(vkResetCommandBuffer(OutCommandBuffer, 0));
+void RegistCommandBuffer(VkCommandBuffer& InCommandBuffer, vector<VkImage>& InSwapchainImages, VkQueue& InQueue)
+{
+    VkCommandBufferBeginInfo commandBufferBeginInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    VK_CHECK_ERROR(vkBeginCommandBuffer(InCommandBuffer, &commandBufferBeginInfo));
+
+    for (VkImage& swapchainImage : InSwapchainImages)
+    {
+        VkClearColorValue clearColorValue{
+            .float32 = {0.6431f, 0.7765f, 0.2235f, 1.0f}
+        };
+
+        VkImageSubresourceRange imageSubresourceRange{
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1
+        };
+
+        vkCmdClearColorImage(InCommandBuffer, swapchainImage, VK_IMAGE_LAYOUT_UNDEFINED, &clearColorValue, 1, &imageSubresourceRange);
+
+    }
+    
+    VK_CHECK_ERROR(vkEndCommandBuffer(InCommandBuffer));
+
+    VkSubmitInfo submitInfo{
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &InCommandBuffer
+    };
+
+    VK_CHECK_ERROR(vkQueueSubmit(InQueue, 1, &submitInfo, VK_NULL_HANDLE));
+    VK_CHECK_ERROR(vkQueueWaitIdle(InQueue));
 }
 
 VkRenderer::VkRenderer(void* InWindowHandle)
@@ -387,6 +424,7 @@ VkRenderer::VkRenderer(void* InWindowHandle)
 #endif
     CreateCommandPool(mQueueFamilyIndex, mDevice, mCommandPool);
     AllocCommandBuffer(mDevice, mCommandPool, mCommandBuffer);
+    RegistCommandBuffer(mCommandBuffer, mSwapchainImages, mQueue);
 }
 
 VkRenderer::~VkRenderer()
@@ -404,5 +442,16 @@ VkRenderer::~VkRenderer()
 
 void VkRenderer::Render()
 {
-    //std::cout << "Render" << std::endl; 
+    uint32_t swapchainImageIndex;
+    VK_CHECK_ERROR(vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &swapchainImageIndex));
+
+    VkPresentInfoKHR presentInfo{
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .swapchainCount = 1,
+        .pSwapchains = &mSwapchain,
+        .pImageIndices = &swapchainImageIndex
+    };
+
+    VK_CHECK_ERROR(vkQueuePresentKHR(mQueue, &presentInfo));
+    VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
 }
