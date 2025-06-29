@@ -358,6 +358,20 @@ void CreateCommandPool(const uint32_t InQueueFamilyIndex, VkDevice& InDevice, Vk
     VK_CHECK_ERROR(vkCreateCommandPool(InDevice, &commandPoolCreateInfo, nullptr, &OutCommandPool));
 }
 
+void AllocCommandBuffer(VkDevice& InDevice, VkCommandPool& InCommandPool, VkCommandBuffer& OutCommandBuffer)
+{
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = InCommandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1
+    };
+
+    VK_CHECK_ERROR(vkAllocateCommandBuffers(InDevice, &commandBufferAllocateInfo, &OutCommandBuffer));
+
+    VK_CHECK_ERROR(vkResetCommandBuffer(OutCommandBuffer, 0));
+}
+
 VkRenderer::VkRenderer(void* InWindowHandle)
 {
     CreateInstance(mInstance
@@ -372,10 +386,12 @@ VkRenderer::VkRenderer(void* InWindowHandle)
     CreateSwapchain(mPhysicalDevice, mDevice, mSurface, mSwapchain, mSwapchainImages);
 #endif
     CreateCommandPool(mQueueFamilyIndex, mDevice, mCommandPool);
+    AllocCommandBuffer(mDevice, mCommandPool, mCommandBuffer);
 }
 
 VkRenderer::~VkRenderer()
 {
+    vkFreeCommandBuffers(mDevice, mCommandPool, 1, &mCommandBuffer);
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);

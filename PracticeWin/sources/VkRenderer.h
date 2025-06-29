@@ -24,4 +24,5 @@ private:
     VkSwapchainKHR mSwapchain;
     std::vector<VkImage> mSwapchainImages;
     VkCommandPool mCommandPool;
+    VkCommandBuffer mCommandBuffer;
 };
