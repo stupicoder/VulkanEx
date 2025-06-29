@@ -187,7 +187,7 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
     }
     assert(compositeAlpha != VK_COMPOSITE_ALPHA_FLAG_BITS_MAX_ENUM_KHR);
 
-    VkImageUsageFlags imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    VkImageUsageFlags imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     assert(surfaceCapabilities.supportedUsageFlags & imageUsage);
 
     uint32_t surfaceFormatCount = 0;
@@ -293,7 +293,39 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
 
     for (auto swapchainImage : mSwapchainImages) {
         // ================================================================================
-        // 9. VkImage 색상 초기화
+        // 9. VkImageLayout 변환
+        // ================================================================================
+        VkImageMemoryBarrier imageMemoryBarrierForClearColorImaga{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_NONE,
+            .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+            .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = swapchainImage,
+            .subresourceRange{
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+
+        vkCmdPipelineBarrier(mCommandBuffer,
+                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             0,
+                             0,
+                             nullptr,
+                             0,
+                             nullptr,
+                             1,
+                             &imageMemoryBarrierForClearColorImaga);
+
+        // ================================================================================
+        // 10. VkImage 색상 초기화
         // ================================================================================
         VkClearColorValue clearColorValue{
             .float32 = {0.6431, 0.7765, 0.2235, 1.0}
@@ -309,19 +341,51 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
 
         vkCmdClearColorImage(mCommandBuffer,
                              swapchainImage,
-                             VK_IMAGE_LAYOUT_UNDEFINED,
+                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                              &clearColorValue,
                              1,
                              &imageSubresourceRange);
+
+        // ================================================================================
+        // 11. VkImageLayout 변환
+        // ================================================================================
+        VkImageMemoryBarrier imageMemoryBarrierForPresentSwapchainImage{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .dstAccessMask = 0,
+                .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .image = swapchainImage,
+                .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1
+                }
+        };
+
+        vkCmdPipelineBarrier(mCommandBuffer,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                             0,
+                             0,
+                             nullptr,
+                             0,
+                             nullptr,
+                             1,
+                             &imageMemoryBarrierForPresentSwapchainImage);
     }
 
     // ================================================================================
-    // 10. VkCommandBuffer 기록 종료
+    // 12. VkCommandBuffer 기록 종료
     // ================================================================================
     VK_CHECK_ERROR(vkEndCommandBuffer(mCommandBuffer));
 
     // ================================================================================
-    // 11. VkCommandBuffer 제출
+    // 13. VkCommandBuffer 제출
     // ================================================================================
     VkSubmitInfo submitInfo{
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -333,7 +397,7 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
     VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
 
     // ================================================================================
-    // 12. VkFence 생성
+    // 14. VkFence 생성
     // ================================================================================
     VkFenceCreateInfo fenceCreateInfo{
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO
