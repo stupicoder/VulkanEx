@@ -347,6 +347,17 @@ void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkS
 }
 #endif
 
+void CreateCommandPool(const uint32_t InQueueFamilyIndex, VkDevice& InDevice, VkCommandPool& OutCommandPool)
+{
+    VkCommandPoolCreateInfo commandPoolCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .queueFamilyIndex = InQueueFamilyIndex
+    };
+
+    VK_CHECK_ERROR(vkCreateCommandPool(InDevice, &commandPoolCreateInfo, nullptr, &OutCommandPool));
+}
+
 VkRenderer::VkRenderer(void* InWindowHandle)
 {
     CreateInstance(mInstance
@@ -360,10 +371,12 @@ VkRenderer::VkRenderer(void* InWindowHandle)
 #if _WIN32
     CreateSwapchain(mPhysicalDevice, mDevice, mSurface, mSwapchain, mSwapchainImages);
 #endif
+    CreateCommandPool(mQueueFamilyIndex, mDevice, mCommandPool);
 }
 
 VkRenderer::~VkRenderer()
 {
+    vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
     vkDestroyDevice(mDevice, nullptr);
