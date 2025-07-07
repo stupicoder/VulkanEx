@@ -89,11 +89,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         if (elapsedTime >= 1000.0)
         {
+#if _DEBUG
             double fps = frameCount / (elapsedTime / 1000.0);
             double ms = elapsedTime / frameCount;
             
             std::wstring title = L"Vulkan Window | FPS: " + std::to_wstring((int)fps) + L" | ms: " + std::to_wstring(ms);
             SetWindowText(hwnd, title.c_str());
+#endif
 
             frameCount = 0;
             elapsedTime = 0.0;

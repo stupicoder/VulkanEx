@@ -14,13 +14,32 @@
 using namespace std;
 
 #if _DEBUG
+
+const char* vkSeverityToString(const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity)
+{
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+    {
+        return "[Vulkan_error] ";
+    }
+    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+    {
+        return "[Vulkan_warning] ";
+    }
+    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
+    {
+        return "[Vulkan_info] ";
+    }
+
+    return "";
+}
+
 VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData)
 {
-    cerr << "[Vulkan Debug] " << pCallbackData->pMessage << endl;
+    cout << vkSeverityToString(messageSeverity) << pCallbackData->pMessage << endl;
     return VK_FALSE;
 }
 
@@ -73,7 +92,12 @@ void CreateInstance(VkInstance& OutInstance
     for (const VkLayerProperties& property : instanceLayerProperties)
     {
         if (property.layerName == string("VK_LAYER_EOS_Overlay") ||
-            property.layerName == string("VK_LAYER_RENDERDOC_Capture"))
+            property.layerName == string("VK_LAYER_RENDERDOC_Capture")
+#if !_DEBUG
+            || property.layerName == string("VK_LAYER_KHRONOS_validation")
+            || property.layerName == string("VK_LAYER_LUNARG_monitor")
+#endif
+            )
         {
             cout << "except- " << property.layerName <<  endl;
             continue;
@@ -112,7 +136,7 @@ void CreateInstance(VkInstance& OutInstance
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     debugCreateInfo.messageSeverity =
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        //VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     debugCreateInfo.messageType =
