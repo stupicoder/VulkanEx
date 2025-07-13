@@ -433,6 +433,15 @@ void RegistCommandBuffer(VkCommandBuffer& InCommandBuffer, vector<VkImage>& InSw
     VK_CHECK_ERROR(vkQueueWaitIdle(InQueue));
 }
 
+void CreateFence(VkDevice& InDevice, VkFence& OutFence)
+{
+    VkFenceCreateInfo fenceCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO
+    };
+
+    VK_CHECK_ERROR(vkCreateFence(InDevice, &fenceCreateInfo, nullptr, &OutFence));
+}
+
 VkRenderer::VkRenderer(void* InWindowHandle)
 {
     CreateInstance(mInstance
@@ -449,10 +458,12 @@ VkRenderer::VkRenderer(void* InWindowHandle)
     CreateCommandPool(mQueueFamilyIndex, mDevice, mCommandPool);
     AllocCommandBuffer(mDevice, mCommandPool, mCommandBuffer);
     RegistCommandBuffer(mCommandBuffer, mSwapchainImages, mQueue);
+	CreateFence(mDevice, mFence);
 }
 
 VkRenderer::~VkRenderer()
 {
+	vkDestroyFence(mDevice, mFence, nullptr);
     vkFreeCommandBuffers(mDevice, mCommandPool, 1, &mCommandBuffer);
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
@@ -467,7 +478,7 @@ VkRenderer::~VkRenderer()
 void VkRenderer::Render()
 {
     uint32_t swapchainImageIndex;
-    VK_CHECK_ERROR(vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, VK_NULL_HANDLE, VK_NULL_HANDLE, &swapchainImageIndex));
+    VK_CHECK_ERROR(vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, VK_NULL_HANDLE, mFence, &swapchainImageIndex));
 
     VkPresentInfoKHR presentInfo{
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -475,6 +486,12 @@ void VkRenderer::Render()
         .pSwapchains = &mSwapchain,
         .pImageIndices = &swapchainImageIndex
     };
+
+    // ================================================================================
+    // 2. VkFence 기다린 후 초기화
+    // ================================================================================
+	VK_CHECK_ERROR(vkWaitForFences(mDevice, 1, &mFence, VK_TRUE, UINT64_MAX));
+	VK_CHECK_ERROR(vkResetFences(mDevice, 1, &mFence));
 
     VK_CHECK_ERROR(vkQueuePresentKHR(mQueue, &presentInfo));
     VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
