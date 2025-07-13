@@ -16,7 +16,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/binaries)
 find_package(Vulkan REQUIRED)
 
 # Automatically find all .cpp files in the 'sources' directory and its subdirectories
-file(GLOB_RECURSE SOURCE_FILES "sources/*.cpp")
+file(GLOB_RECURSE SOURCE_FILES "sources/*.cpp" "sources/*.h")
 
 # Create a Windows-specific executable (no console window)
 add_executable(${PROJECT_NAME} WIN32 ${SOURCE_FILES})

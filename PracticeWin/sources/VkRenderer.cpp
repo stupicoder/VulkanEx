@@ -309,7 +309,7 @@ void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkS
     }
     assert(compositeAlpha != VK_COMPOSITE_ALPHA_FLAG_BITS_MAX_ENUM_KHR);
 
-    VkImageUsageFlags imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    VkImageUsageFlags imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     assert(surfaceCapabilities.supportedUsageFlags & imageUsage);
 
     uint32_t surfaceFormatCount = 0;
@@ -405,6 +405,34 @@ void RegistCommandBuffer(VkCommandBuffer& InCommandBuffer, vector<VkImage>& InSw
 
     for (VkImage& swapchainImage : InSwapchainImages)
     {
+        VkImageMemoryBarrier imageMemoryBarrierForClearColorImaga{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_NONE,
+            .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+            .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = swapchainImage,
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+		};
+
+        vkCmdPipelineBarrier(
+            InCommandBuffer,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0, // dependencyFlags
+            0, nullptr, // memory barriers
+            0, nullptr, // buffer barriers
+            1, &imageMemoryBarrierForClearColorImaga // image barriers
+		);
+
         VkClearColorValue clearColorValue{
             .float32 = {0.6431f, 0.7765f, 0.2235f, 1.0f}
         };
@@ -417,8 +445,41 @@ void RegistCommandBuffer(VkCommandBuffer& InCommandBuffer, vector<VkImage>& InSw
             .layerCount = 1
         };
 
-        vkCmdClearColorImage(InCommandBuffer, swapchainImage, VK_IMAGE_LAYOUT_UNDEFINED, &clearColorValue, 1, &imageSubresourceRange);
+        vkCmdClearColorImage(
+            InCommandBuffer, 
+            swapchainImage, 
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+            &clearColorValue, 
+            1, 
+            &imageSubresourceRange);
 
+		VkImageMemoryBarrier imageMemoryBarrierForPresentSwapchainImage{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_NONE,
+            .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .image = swapchainImage,
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+
+        vkCmdPipelineBarrier(
+            InCommandBuffer,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, // or VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+            0, // dependencyFlags
+            0, nullptr, // memory barriers
+            0, nullptr, // buffer barriers
+            1, &imageMemoryBarrierForPresentSwapchainImage // image barriers
+		);
     }
     
     VK_CHECK_ERROR(vkEndCommandBuffer(InCommandBuffer));
