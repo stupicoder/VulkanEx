@@ -137,6 +137,7 @@ void CreateInstance(VkInstance& OutInstance
     debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     debugCreateInfo.messageSeverity =
         //VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        //VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     debugCreateInfo.messageType =
@@ -253,7 +254,8 @@ void CreateDevice(VkPhysicalDevice& InPhysicalDevice, uint32_t& OutQueueFamilyIn
     vector<const char*> deviceExtensionNames;
     for (const VkExtensionProperties& properties : deviceExtensionProperties)
     {
-        if (properties.extensionName == string("VK_KHR_swapchain"))
+        if (properties.extensionName == string("VK_KHR_swapchain") ||
+            properties.extensionName == string("VK_KHR_portability_subset"))
         {
             deviceExtensionNames.push_back(properties.extensionName);
             cout << "include-" << properties.extensionName << endl;
@@ -503,6 +505,82 @@ void CreateFence(VkDevice& InDevice, VkFence& OutFence)
     VK_CHECK_ERROR(vkCreateFence(InDevice, &fenceCreateInfo, nullptr, &OutFence));
 }
 
+void CmdClearColorImage(VkCommandBuffer InCommandBuffer, VkImage InImage, VkClearColorValue InClearColor)
+{
+    vkResetCommandBuffer(InCommandBuffer, 0);
+
+    VkCommandBufferBeginInfo commandBufferBeginInfo{
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+    };
+
+    VK_CHECK_ERROR(vkBeginCommandBuffer(InCommandBuffer, &commandBufferBeginInfo));
+
+    VkImageSubresourceRange imageSubresourceRange{
+        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+        .baseMipLevel = 0,
+        .levelCount = 1,
+        .baseArrayLayer = 0,
+        .layerCount = 1
+    };
+
+    VkImageMemoryBarrier imageMemoryBarrierForClearColorImage{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_NONE,
+        .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+        .oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = InImage,
+        .subresourceRange = imageSubresourceRange
+    };
+
+    vkCmdPipelineBarrier(InCommandBuffer,
+                        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                        VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        0,
+                        0,
+                        nullptr,
+                        0, 
+                        nullptr,
+                        1,
+                        &imageMemoryBarrierForClearColorImage);
+
+
+    vkCmdClearColorImage(InCommandBuffer,
+                        InImage,
+                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                        &InClearColor,
+                        1,
+                        &imageSubresourceRange);
+
+    VkImageMemoryBarrier imageMemoryBarrierForPresentSwapchainImage{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+        .dstAccessMask = 0,
+        .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .image = InImage,
+        .subresourceRange = imageSubresourceRange
+    };
+
+    vkCmdPipelineBarrier(InCommandBuffer,
+                        VK_PIPELINE_STAGE_TRANSFER_BIT,
+                        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                        0,
+                        0,
+                        nullptr,
+                        0, 
+                        nullptr,
+                        1,
+                        &imageMemoryBarrierForPresentSwapchainImage);
+    
+    VK_CHECK_ERROR(vkEndCommandBuffer(InCommandBuffer));
+}
+
 VkRenderer::VkRenderer(void* InWindowHandle)
 {
     CreateInstance(mInstance
@@ -540,6 +618,24 @@ void VkRenderer::Render()
 {
     uint32_t swapchainImageIndex;
     VK_CHECK_ERROR(vkAcquireNextImageKHR(mDevice, mSwapchain, UINT64_MAX, VK_NULL_HANDLE, mFence, &swapchainImageIndex));
+    VkImage swapchainImage = mSwapchainImages[swapchainImageIndex];
+    
+	VK_CHECK_ERROR(vkWaitForFences(mDevice, 1, &mFence, VK_TRUE, UINT64_MAX));
+	VK_CHECK_ERROR(vkResetFences(mDevice, 1, &mFence));
+    
+    for (auto i = 0; i != 4; ++i) {
+        mClearColorValue.float32[i] = fmodf(mClearColorValue.float32[i] + 0.01f, 1.0);
+    }
+    CmdClearColorImage(mCommandBuffer, swapchainImage, mClearColorValue);
+
+    VkSubmitInfo submitInfo{
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &mCommandBuffer
+    };
+
+    VK_CHECK_ERROR(vkQueueSubmit(mQueue, 1, &submitInfo, VK_NULL_HANDLE));
+    VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
 
     VkPresentInfoKHR presentInfo{
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -547,12 +643,6 @@ void VkRenderer::Render()
         .pSwapchains = &mSwapchain,
         .pImageIndices = &swapchainImageIndex
     };
-
-    // ================================================================================
-    // 2. VkFence 기다린 후 초기화
-    // ================================================================================
-	VK_CHECK_ERROR(vkWaitForFences(mDevice, 1, &mFence, VK_TRUE, UINT64_MAX));
-	VK_CHECK_ERROR(vkResetFences(mDevice, 1, &mFence));
 
     VK_CHECK_ERROR(vkQueuePresentKHR(mQueue, &presentInfo));
     VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
