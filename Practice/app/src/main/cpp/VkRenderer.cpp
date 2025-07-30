@@ -350,9 +350,19 @@ VkRenderer::VkRenderer(ANativeWindow* window) {
     };
 
     VK_CHECK_ERROR(vkCreateFence(mDevice, &fenceCreateInfo, nullptr, &mFence));
+
+    // ================================================================================
+    // 13. VkSemaphore 생성
+    // ================================================================================
+    VkSemaphoreCreateInfo semaphoreCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    };
+
+    VK_CHECK_ERROR(vkCreateSemaphore(mDevice, &semaphoreCreateInfo, nullptr, &mSemaphore));
 }
 
 VkRenderer::~VkRenderer() {
+    vkDestroySemaphore(mDevice, mSemaphore, nullptr);
     vkDestroyFence(mDevice, mFence, nullptr);
     vkFreeCommandBuffers(mDevice, mCommandPool, 1, &mCommandBuffer);
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
@@ -497,16 +507,19 @@ void VkRenderer::render() {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .commandBufferCount = 1,
         .pCommandBuffers = &mCommandBuffer,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = &mSemaphore
     };
 
     VK_CHECK_ERROR(vkQueueSubmit(mQueue, 1, &submitInfo, VK_NULL_HANDLE));
-    VK_CHECK_ERROR(vkQueueWaitIdle(mQueue));
 
     // ================================================================================
     // 11. VkImage 화면에 출력
     // ================================================================================
     VkPresentInfoKHR presentInfo{
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &mSemaphore,
         .swapchainCount = 1,
         .pSwapchains = &mSwapchain,
         .pImageIndices = &swapchainImageIndex
