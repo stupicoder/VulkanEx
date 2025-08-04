@@ -505,6 +505,15 @@ void CreateFence(VkDevice& InDevice, VkFence& OutFence)
     VK_CHECK_ERROR(vkCreateFence(InDevice, &fenceCreateInfo, nullptr, &OutFence));
 }
 
+void CreateSemaphore(VkDevice& InDevice, VkSemaphore& OutSemaphore)
+{
+    VkSemaphoreCreateInfo semaphoreCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    };
+
+    VK_CHECK_ERROR(vkCreateSemaphore(InDevice, &semaphoreCreateInfo, nullptr, &OutSemaphore));
+}
+
 void CmdClearColorImage(VkCommandBuffer InCommandBuffer, VkImage InImage, VkClearColorValue InClearColor)
 {
     vkResetCommandBuffer(InCommandBuffer, 0);
@@ -598,10 +607,12 @@ VkRenderer::VkRenderer(void* InWindowHandle)
     AllocCommandBuffer(mDevice, mCommandPool, mCommandBuffer);
     RegistCommandBuffer(mCommandBuffer, mSwapchainImages, mQueue);
 	CreateFence(mDevice, mFence);
+    CreateSemaphore(mDevice, mSemaphore);
 }
 
 VkRenderer::~VkRenderer()
 {
+    vkDestroySemaphore(mDevice, mSemaphore, nullptr);
 	vkDestroyFence(mDevice, mFence, nullptr);
     vkFreeCommandBuffers(mDevice, mCommandPool, 1, &mCommandBuffer);
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
@@ -631,7 +642,9 @@ void VkRenderer::Render()
     VkSubmitInfo submitInfo{
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .commandBufferCount = 1,
-        .pCommandBuffers = &mCommandBuffer
+        .pCommandBuffers = &mCommandBuffer,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = &mSemaphore
     };
 
     VK_CHECK_ERROR(vkQueueSubmit(mQueue, 1, &submitInfo, VK_NULL_HANDLE));
@@ -639,6 +652,8 @@ void VkRenderer::Render()
 
     VkPresentInfoKHR presentInfo{
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &mSemaphore,
         .swapchainCount = 1,
         .pSwapchains = &mSwapchain,
         .pImageIndices = &swapchainImageIndex
