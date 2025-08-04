@@ -295,7 +295,7 @@ void CreateSurface(VkPhysicalDevice& InPhysicalDevice, uint32_t InQueueFamilyInd
 }
 
 #if _WIN32
-void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkSurfaceKHR& InSurface, VkSwapchainKHR& OutSwapchain, vector<VkImage>& OutSwapchainImages)
+void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkSurfaceKHR& InSurface, VkSwapchainKHR& OutSwapchain, vector<VkImage>& OutSwapchainImages, vector<VkImageView>& OutSwapchainImageViews)
 {
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
     VK_CHECK_ERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(InPhysicalDevice, InSurface, &surfaceCapabilities));
@@ -370,6 +370,33 @@ void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkS
 
     OutSwapchainImages.resize(swapchainImageCount);
     VK_CHECK_ERROR(vkGetSwapchainImagesKHR(InDevice, OutSwapchain, &swapchainImageCount, OutSwapchainImages.data()));
+
+    OutSwapchainImageViews.resize(swapchainImageCount);
+    for (int32_t i = 0; i != swapchainImageCount; ++i)
+    {
+        VkImageViewCreateInfo imageViewCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = OutSwapchainImages[i],
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = surfaceFormats[surfaceFormatIndex].format,
+            .components = {
+                .r = VK_COMPONENT_SWIZZLE_R,
+                .g = VK_COMPONENT_SWIZZLE_G,
+                .b = VK_COMPONENT_SWIZZLE_B,
+                .a = VK_COMPONENT_SWIZZLE_A
+            },
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+
+        VK_CHECK_ERROR(vkCreateImageView(InDevice, &imageViewCreateInfo, nullptr, &OutSwapchainImageViews[i]));
+    }
+
 }
 #endif
 
@@ -377,7 +404,7 @@ void CreateCommandPool(const uint32_t InQueueFamilyIndex, VkDevice& InDevice, Vk
 {
     VkCommandPoolCreateInfo commandPoolCreateInfo{
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
         .queueFamilyIndex = InQueueFamilyIndex
     };
 
@@ -601,7 +628,7 @@ VkRenderer::VkRenderer(void* InWindowHandle)
     CreateDevice(mPhysicalDevice, mQueueFamilyIndex, mQueue, mDevice);
     CreateSurface(mPhysicalDevice, mQueueFamilyIndex, mInstance, InWindowHandle, mSurface);
 #if _WIN32
-    CreateSwapchain(mPhysicalDevice, mDevice, mSurface, mSwapchain, mSwapchainImages);
+    CreateSwapchain(mPhysicalDevice, mDevice, mSurface, mSwapchain, mSwapchainImages, mSwapchainImageViews);
 #endif
     CreateCommandPool(mQueueFamilyIndex, mDevice, mCommandPool);
     AllocCommandBuffer(mDevice, mCommandPool, mCommandBuffer);
@@ -612,6 +639,11 @@ VkRenderer::VkRenderer(void* InWindowHandle)
 
 VkRenderer::~VkRenderer()
 {
+    for (auto& imageView : mSwapchainImageViews)
+    {
+        vkDestroyImageView(mDevice, imageView, nullptr);
+    }
+    mSwapchainImageViews.clear();
     vkDestroySemaphore(mDevice, mSemaphore, nullptr);
 	vkDestroyFence(mDevice, mFence, nullptr);
     vkFreeCommandBuffers(mDevice, mCommandPool, 1, &mCommandBuffer);
