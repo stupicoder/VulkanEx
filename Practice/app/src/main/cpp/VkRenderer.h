@@ -24,6 +24,7 @@ private:
     VkSurfaceKHR mSurface;
     VkSwapchainKHR mSwapchain;
     std::vector<VkImage> mSwapchainImages;
+    VkExtent2D mSwapchainImageExtent;
     VkCommandPool mCommandPool;
     VkCommandBuffer mCommandBuffer;
     VkFence mFence;
@@ -31,6 +32,8 @@ private:
     VkSemaphore mSemaphore;
     std::vector<VkImageView> mSwapchainImageViews;
     VkRenderPass mRenderPass;
+
+    std::vector<VkFramebuffer> mFramebuffers;
 };
 
 
