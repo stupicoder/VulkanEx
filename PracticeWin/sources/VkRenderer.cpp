@@ -137,7 +137,7 @@ void CreateInstance(VkInstance& OutInstance
     debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     debugCreateInfo.messageSeverity =
         //VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-        //VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     debugCreateInfo.messageType =
@@ -295,7 +295,9 @@ void CreateSurface(VkPhysicalDevice& InPhysicalDevice, uint32_t InQueueFamilyInd
 }
 
 #if _WIN32
-void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkSurfaceKHR& InSurface, VkSwapchainKHR& OutSwapchain, vector<VkImage>& OutSwapchainImages, VkFormat& OutFormat, vector<VkImageView>& OutSwapchainImageViews)
+void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkSurfaceKHR& InSurface, 
+    VkSwapchainKHR& OutSwapchain, vector<VkImage>& OutSwapchainImages, VkFormat& OutFormat, VkExtent2D& OutExtent,
+    vector<VkImageView>& OutSwapchainImageViews)
 {
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
     VK_CHECK_ERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(InPhysicalDevice, InSurface, &surfaceCapabilities));
@@ -312,7 +314,7 @@ void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkS
     assert(compositeAlpha != VK_COMPOSITE_ALPHA_FLAG_BITS_MAX_ENUM_KHR);
 
     VkImageUsageFlags imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    assert(surfaceCapabilities.supportedUsageFlags & imageUsage);
+    assert(surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT);
 
     uint32_t surfaceFormatCount = 0;
     VK_CHECK_ERROR(vkGetPhysicalDeviceSurfaceFormatsKHR(InPhysicalDevice, InSurface, &surfaceFormatCount, nullptr));
@@ -332,6 +334,7 @@ void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkS
     assert(surfaceFormatIndex != VK_FORMAT_MAX_ENUM);
 
     OutFormat = surfaceFormats[surfaceFormatIndex].format;
+    OutExtent = surfaceCapabilities.currentExtent;
 
     uint32_t presentModeCount;
     VK_CHECK_ERROR(vkGetPhysicalDeviceSurfacePresentModesKHR(InPhysicalDevice, InSurface, &presentModeCount, nullptr));
@@ -356,7 +359,7 @@ void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkS
         .minImageCount = surfaceCapabilities.minImageCount,
         .imageFormat = OutFormat,
         .imageColorSpace = surfaceFormats[surfaceFormatIndex].colorSpace,
-        .imageExtent = surfaceCapabilities.currentExtent,
+        .imageExtent = OutExtent,
         .imageArrayLayers = 1,
         .imageUsage = imageUsage,
         .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -652,6 +655,26 @@ void CreateRenderPass(VkDevice& InDevice, const VkFormat InFormat, VkRenderPass&
     VK_CHECK_ERROR(vkCreateRenderPass(InDevice, &renderPassCreateInfo, nullptr, &OutRenderPass));
 }
 
+void CreateFramebuffer(VkDevice& InDevice, int32_t InSwapchainImageCount, VkExtent2D& InSurfaceExtent,
+    std::vector<VkImageView>& InSwapchainImageViews, VkRenderPass& InRenderPass, std::vector<VkFramebuffer>& OutFramebuffers)
+{
+    OutFramebuffers.resize(InSwapchainImageCount);
+    for (int32_t i = 0; i != InSwapchainImageCount; ++i)
+    {
+        VkFramebufferCreateInfo framebufferCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = InRenderPass,
+            .attachmentCount = 1,
+            .pAttachments = &InSwapchainImageViews[i],
+            .width = InSurfaceExtent.width,
+            .height = InSurfaceExtent.height,
+            .layers = 1
+        };
+
+        VK_CHECK_ERROR(vkCreateFramebuffer(InDevice, &framebufferCreateInfo, nullptr, &OutFramebuffers[i]));
+    }
+}
+
 VkRenderer::VkRenderer(void* InWindowHandle)
 {
     CreateInstance(mInstance
@@ -664,7 +687,7 @@ VkRenderer::VkRenderer(void* InWindowHandle)
     CreateSurface(mPhysicalDevice, mQueueFamilyIndex, mInstance, InWindowHandle, mSurface);
     VkFormat surfaceFormat;
 #if _WIN32
-    CreateSwapchain(mPhysicalDevice, mDevice, mSurface, mSwapchain, mSwapchainImages, surfaceFormat, mSwapchainImageViews);
+    CreateSwapchain(mPhysicalDevice, mDevice, mSurface, mSwapchain, mSwapchainImages, surfaceFormat, mSwapchainImageExtent, mSwapchainImageViews);
 #endif
     CreateCommandPool(mQueueFamilyIndex, mDevice, mCommandPool);
     AllocCommandBuffer(mDevice, mCommandPool, mCommandBuffer);
@@ -672,10 +695,16 @@ VkRenderer::VkRenderer(void* InWindowHandle)
 	CreateFence(mDevice, mFence);
     CreateSemaphore(mDevice, mSemaphore);
     CreateRenderPass(mDevice, surfaceFormat, mRenderPass);
+    CreateFramebuffer(mDevice, mSwapchainImageViews.size(), mSwapchainImageExtent, mSwapchainImageViews, mRenderPass, mFramebuffers);
 }
 
 VkRenderer::~VkRenderer()
 {
+    for (auto& framebuffer : mFramebuffers)
+    {
+        vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
+    }
+    mFramebuffers.clear();
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
     for (auto& imageView : mSwapchainImageViews)
     {
