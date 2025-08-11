@@ -295,7 +295,7 @@ void CreateSurface(VkPhysicalDevice& InPhysicalDevice, uint32_t InQueueFamilyInd
 }
 
 #if _WIN32
-void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkSurfaceKHR& InSurface, VkSwapchainKHR& OutSwapchain, vector<VkImage>& OutSwapchainImages, vector<VkImageView>& OutSwapchainImageViews)
+void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkSurfaceKHR& InSurface, VkSwapchainKHR& OutSwapchain, vector<VkImage>& OutSwapchainImages, VkFormat& OutFormat, vector<VkImageView>& OutSwapchainImageViews)
 {
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
     VK_CHECK_ERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(InPhysicalDevice, InSurface, &surfaceCapabilities));
@@ -331,6 +331,8 @@ void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkS
     }
     assert(surfaceFormatIndex != VK_FORMAT_MAX_ENUM);
 
+    OutFormat = surfaceFormats[surfaceFormatIndex].format;
+
     uint32_t presentModeCount;
     VK_CHECK_ERROR(vkGetPhysicalDeviceSurfacePresentModesKHR(InPhysicalDevice, InSurface, &presentModeCount, nullptr));
 
@@ -352,7 +354,7 @@ void CreateSwapchain(VkPhysicalDevice& InPhysicalDevice, VkDevice& InDevice, VkS
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface = InSurface,
         .minImageCount = surfaceCapabilities.minImageCount,
-        .imageFormat = surfaceFormats[surfaceFormatIndex].format,
+        .imageFormat = OutFormat,
         .imageColorSpace = surfaceFormats[surfaceFormatIndex].colorSpace,
         .imageExtent = surfaceCapabilities.currentExtent,
         .imageArrayLayers = 1,
@@ -617,6 +619,39 @@ void CmdClearColorImage(VkCommandBuffer InCommandBuffer, VkImage InImage, VkClea
     VK_CHECK_ERROR(vkEndCommandBuffer(InCommandBuffer));
 }
 
+void CreateRenderPass(VkDevice& InDevice, const VkFormat InFormat, VkRenderPass& OutRenderPass)
+{
+    VkAttachmentDescription attachmentDescription{
+        .format = InFormat,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+
+    VkAttachmentReference attachmentReference{
+        .attachment = 0,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+
+    VkSubpassDescription subpassDescription{
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &attachmentReference
+    };
+
+    VkRenderPassCreateInfo renderPassCreateInfo{
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .attachmentCount = 1,
+        .pAttachments = &attachmentDescription,
+        .subpassCount = 1,
+        .pSubpasses = &subpassDescription
+    };
+
+    VK_CHECK_ERROR(vkCreateRenderPass(InDevice, &renderPassCreateInfo, nullptr, &OutRenderPass));
+}
+
 VkRenderer::VkRenderer(void* InWindowHandle)
 {
     CreateInstance(mInstance
@@ -627,18 +662,21 @@ VkRenderer::VkRenderer(void* InWindowHandle)
     SelectPhysicalDevice(mInstance, mPhysicalDevice);
     CreateDevice(mPhysicalDevice, mQueueFamilyIndex, mQueue, mDevice);
     CreateSurface(mPhysicalDevice, mQueueFamilyIndex, mInstance, InWindowHandle, mSurface);
+    VkFormat surfaceFormat;
 #if _WIN32
-    CreateSwapchain(mPhysicalDevice, mDevice, mSurface, mSwapchain, mSwapchainImages, mSwapchainImageViews);
+    CreateSwapchain(mPhysicalDevice, mDevice, mSurface, mSwapchain, mSwapchainImages, surfaceFormat, mSwapchainImageViews);
 #endif
     CreateCommandPool(mQueueFamilyIndex, mDevice, mCommandPool);
     AllocCommandBuffer(mDevice, mCommandPool, mCommandBuffer);
     RegistCommandBuffer(mCommandBuffer, mSwapchainImages, mQueue);
 	CreateFence(mDevice, mFence);
     CreateSemaphore(mDevice, mSemaphore);
+    CreateRenderPass(mDevice, surfaceFormat, mRenderPass);
 }
 
 VkRenderer::~VkRenderer()
 {
+    vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
     for (auto& imageView : mSwapchainImageViews)
     {
         vkDestroyImageView(mDevice, imageView, nullptr);
